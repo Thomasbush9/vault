@@ -1,0 +1,2 @@
+A function is said Monotonic (increasing or decreasing) if: for each x, y $\in$ R, where $x \leq y$ then : $f(x) \leq f(y)$
+An example is the [[Hyperbolic Tangent tanh(x)]] that is monotonic increasing, while the [[Guassian Function]] is not. 

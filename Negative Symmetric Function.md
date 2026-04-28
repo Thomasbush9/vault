@@ -1,0 +1,1 @@
+A negative symmetric function is a function where: f(-x) == -f(x), basically you can rotate the function 180 degrees that it would still be the same function. It is also called odd function, 

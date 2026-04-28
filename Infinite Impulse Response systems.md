@@ -1,0 +1,1 @@
+In signal processing, **Infinite Impulse Response (IIR)** systems are those whose **output depends on all past inputs indefinitely**. This contrasts with **Finite Impulse Response (FIR)** systems, which depend only on a finite number of past inputs.

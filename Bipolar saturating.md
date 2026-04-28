@@ -1,0 +1,1 @@
+Bipolar saturating means that the function after a certain value does not change anymore

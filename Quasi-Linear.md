@@ -1,0 +1,1 @@
+A quasi linear region in a function means that the function presents a region that is approximate by a linear function, an example is the [[Hyperbolic Tangent tanh(x)]] in the non saturated space. 
