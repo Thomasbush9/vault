@@ -221,7 +221,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -235,12 +236,12 @@
       "obsidian-git:Open Git source control": false
     }
   },
-  "active": "43a236a71ec5ac57",
+  "active": "24016769502a7eb9",
   "lastOpenFiles": [
-    "projects_ideas/Improving Protein Models Attention.md",
-    "projects_ideas/ProtForge usage.md",
-    "MSA Sanity Check.md",
     "BIO/AlphaFold Supplementary Materia.md",
+    "projects_ideas/ProtForge usage.md",
+    "projects_ideas/Improving Protein Models Attention.md",
+    "MSA Sanity Check.md",
     "Shared Latent Space for Protein Design Models.md",
     "BIO/AlphaFold 3 Architecture.md"
   ]
