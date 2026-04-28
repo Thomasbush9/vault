@@ -281,3 +281,25 @@ Meeting points:
 - Check discrete flow mapping for proteinMPNN model 
 
 [[MSA Sanity Check]]
+
+At the moment we have seen that the msa for the mutants is basically a subset of the original msa. Thus, we should start to think about how to change it to improve the model
+
+
+Experimetns 04-28:
+- Check the confidence 
+- Run msa analysis over all the msa that we created [X]
+- Generate structures for the msa free sequences [X]
+		- generate dirs with cleaned msa[X]
+		- remove the msa from the .yamls [X]
+		- launch predictions [X]
+- Compute the scoring: 
+	- msa-free
+	- synthetic proteins 
+- Try to perturb also the msa? remove columns? 
+- Would be possible to use something different from the msa as our input? 
+- Code uniprot scritp to generate the .fasta files for the protForge pipeline 
+- Add hidden representations to the protforge 
+
+
+
+
