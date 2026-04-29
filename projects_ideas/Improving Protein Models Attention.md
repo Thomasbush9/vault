@@ -285,7 +285,7 @@ Meeting points:
 At the moment we have seen that the msa for the mutants is basically a subset of the original msa. Thus, we should start to think about how to change it to improve the model
 
 
-Experimetns 04-28:
+Experiments 04-28,29
 - Check the confidence 
 - Run msa analysis over all the msa that we created [X]
 - Generate structures for the msa free sequences [X]
@@ -293,13 +293,19 @@ Experimetns 04-28:
 		- remove the msa from the .yamls [X]
 		- launch predictions [X]
 - Compute the scoring: 
-	- msa-free
+	- msa-free [X]
 	- synthetic proteins 
 - Try to perturb also the msa? remove columns? 
 - Would be possible to use something different from the msa as our input? 
 - Code uniprot scritp to generate the .fasta files for the protForge pipeline 
 - Add hidden representations to the protforge 
 
+
+
+ Experiments to do: 
+
+- Check attention/representation for the msa module in Boltz
+- Think about possible perturbations that we could add to the msa to make it more interesting to use in these setups 
 
 
 
