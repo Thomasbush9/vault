@@ -12,3 +12,6 @@ Alternatives to the MSA:
 - Mutation aware msa 
 - MSA dcontamination: remove rows above a sequence-identity with the WT 
 - Protein language model embeddings-> how to add it to the pair representation? 
+
+
+We can see a high tm-score (above pure noise) even with a random sequence 0.33. We could test until which perturbation level/same msa we obtain the a high score >0.5
