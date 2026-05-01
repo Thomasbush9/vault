@@ -306,6 +306,9 @@ Experiments 04-28,29
 
 - Check attention/representation for the msa module in Boltz
 - Think about possible perturbations that we could add to the msa to make it more interesting to use in these setups 
+- conservation vs. unique region for memory: we should look at the attention map in the msa/pair representation to understand which aa are the most informative 
 
+
+Verify the current updates with codex + tests. 
 
 

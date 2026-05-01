@@ -35,7 +35,8 @@
               "title": "Improving Protein Models Attention"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -108,7 +109,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "MSA Sanity Check.md",
+                "file": "projects_ideas/Improving Protein Models Attention.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -118,7 +119,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for MSA Sanity Check"
+              "title": "Backlinks for Improving Protein Models Attention"
             }
           },
           {
@@ -127,12 +128,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "MSA Sanity Check.md",
+                "file": "projects_ideas/Improving Protein Models Attention.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from MSA Sanity Check"
+              "title": "Outgoing links from Improving Protein Models Attention"
             }
           },
           {
@@ -170,13 +171,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "MSA Sanity Check.md",
+                "file": "projects_ideas/Improving Protein Models Attention.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of MSA Sanity Check"
+              "title": "Outline of Improving Protein Models Attention"
             }
           },
           {
@@ -209,12 +210,14 @@
       "obsidian-git:Open Git source control": false
     }
   },
-  "active": "5c3ee7d9bd1ad474",
+  "active": "9b610d266b6bf5fa",
   "lastOpenFiles": [
-    "projects_ideas/Improving Protein Models Attention.md",
-    "projects_ideas/ProtForge usage.md",
     "MSA Sanity Check.md",
+    "projects_ideas/Improving Protein Models Attention.md",
+    "Negative Symmetric Function.md",
     "Shared Latent Space for Protein Design Models.md",
+    "projects_ideas/Learning how Environmental Perturbation affect Protein Energy Landscapes.md",
+    "projects_ideas/ProtForge usage.md",
     "BIO/AlphaFold Supplementary Materia.md",
     "BIO/AlphaFold 3 Architecture.md"
   ]
