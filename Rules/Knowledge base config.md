@@ -47,7 +47,7 @@ HPC syncs only the code repos.
 
 ### Cross-device shared data (`tmp-data`)
 
-Intermediate data, model outputs, and large artifacts that don't belong in git live under `~/tmp-data/tmp_data/` on each Mac. The Pi (with the 1TB disk) is the canonical store; each device pulls/pushes via **rsync on demand** (not Syncthing — explicit, not background).
+Intermediate data, model outputs, and large artifacts that don't belong in git live under `~/tmp-data/tmp_data/` on each the macbook pro, while on the macmini the tmp-data are here: `/Users/thom/tmp_data/tmp_data` . The Pi (with the 1TB disk) is the canonical store; each device pulls/pushes via **rsync on demand** (not Syncthing — explicit, not background).
 
 - Local path on Macs: `/Users/thomasbush/tmp-data/tmp_data/`
 - Canonical home: Pi.

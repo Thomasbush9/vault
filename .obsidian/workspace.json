@@ -4,21 +4,19 @@
     "type": "split",
     "children": [
       {
-        "id": "7b546518aa1f3c3e",
+        "id": "5d09f42065c4def5",
         "type": "tabs",
         "children": [
           {
-            "id": "6cf56b0b6c896159",
+            "id": "9b610d266b6bf5fa",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "image",
               "state": {
-                "file": "Lab/protein-interp/log/2026-05-01-msa-sanity-check.md",
-                "mode": "source",
-                "source": false
+                "file": "Lab/protforge/log/figures/2026-05-05-calibration-fits-v3.png"
               },
-              "icon": "lucide-file",
-              "title": "2026-05-01-msa-sanity-check"
+              "icon": "lucide-image",
+              "title": "2026-05-05-calibration-fits-v3"
             }
           }
         ]
@@ -94,7 +92,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "projects_ideas/Improving Protein Models Attention.md",
+                "file": "Lab/protforge/log/figures/2026-05-05-calibration-fits-v3.png",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +102,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks for Improving Protein Models Attention"
+              "title": "Backlinks for 2026-05-05-calibration-fits-v3"
             }
           },
           {
@@ -113,12 +111,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "projects_ideas/Improving Protein Models Attention.md",
+                "file": "Lab/protforge/log/figures/2026-05-05-calibration-fits-v3.png",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from Improving Protein Models Attention"
+              "title": "Outgoing links from 2026-05-05-calibration-fits-v3"
             }
           },
           {
@@ -156,13 +154,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "projects_ideas/Improving Protein Models Attention.md",
+                "file": "Lab/protforge/log/figures/2026-05-05-calibration-fits-v3.png",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of Improving Protein Models Attention"
+              "title": "Outline of 2026-05-05-calibration-fits-v3"
             }
           },
           {
@@ -171,8 +169,8 @@
             "state": {
               "type": "git-view",
               "state": {},
-              "icon": "lucide-ghost",
-              "title": "git-view"
+              "icon": "git-pull-request",
+              "title": "Source Control"
             }
           }
         ],
@@ -195,36 +193,49 @@
       "obsidian-git:Open Git source control": false
     }
   },
-  "active": "6cf56b0b6c896159",
+  "active": "aebb8e58856a0305",
   "lastOpenFiles": [
-    "Lab/protforge/repo.md",
-    "Lab/protforge/README.md",
-    "Lab/protforge/lit.md",
-    "Lab/protforge/decisions.md",
-    "Lab/protforge/data.md",
-    "Lab/protforge/CLAUDE.md",
-    "Lab/protforge/calibration.md",
-    "Lab/protforge/agenda.md",
+    "Lab/protein-interp/log/2026-05-05-query-occlusion.md",
+    "Lab/protforge/log/figures/2026-05-05-calibration-memory-v3.png",
+    "Lab/protforge/log/figures/2026-05-05-calibration-chunking.png",
+    "Knowledge/ML for CompBIO/Single Cell Genomics.md",
+    "Lab/protforge/log/figures/2026-05-05-calibration-fits-v3.png",
+    "Knowledge/ML for CompBIO",
+    "Lab/protforge/log/figures/2026-05-05-calibration-fits.png",
+    "Lab/protforge/log/figures/2026-05-05-calibration-chunking-v3.png",
+    "Lab/protforge/log/figures/2026-05-05-calibration-memory.png",
     "Lab/protforge/log/2026-05-04-h100-calibration-v1.md",
+    "Lab/protforge/agenda.md",
+    "Lab/protein-interp/decisions.md",
+    "Lab/protein-interp/agenda.md",
+    "Lab/protein-interp/data.md",
+    "Lab/protein-interp/repo.md",
+    "Lab/protforge/log/2026-05-05-h100-calibration-v2.md",
+    "Lab/protforge/log/figures",
+    "Lab/protein-interp/log/2026-05-05-gradient-attribution-design.md",
     "Lab/protein-interp/lit.md",
-    "Rules/onboarding.md",
-    "Rules/workflow.md",
-    "Rules/bootstrap-project.sh",
+    "Rules/Knowledge base config.md",
+    "Lab/protforge/repo.md",
+    "projects_ideas/Improving Protein Models Attention.md",
+    "inbox/Less is More.md",
+    "inbox",
     "Rules/skills/bootstrap-skills.sh",
     "Rules/skills/README.md",
+    "Rules/project-template/repo.md",
+    "Rules/project-template/log",
+    "Rules/project-template/lit.md",
+    "Rules/project-template/decisions.md",
+    "Rules/project-template/data.md",
+    "Rules/project-template/agenda.md",
+    "Rules/project-template/CLAUDE.md",
+    "Rules/project-template/README.md",
+    "Rules/workflow.md",
     "Rules/skills",
-    "Rules/Knowledge base config.md",
-    "Lab/environmental-perturbation/lit.md",
-    "Lab/environmental-perturbation/repo.md",
-    "Lab/environmental-perturbation/data.md",
-    "Lab/environmental-perturbation/agenda.md",
-    "inbox/Less is More.md",
-    "MSA Sanity Check.md",
-    "projects_ideas/Improving Protein Models Attention.md",
-    "Negative Symmetric Function.md",
-    "Shared Latent Space for Protein Design Models.md",
-    "projects_ideas/Learning how Environmental Perturbation affect Protein Energy Landscapes.md",
-    "projects_ideas/ProtForge usage.md",
-    "BIO/AlphaFold Supplementary Materia.md"
+    "Rules/project-template",
+    "Rules/onboarding.md",
+    "Rules/bootstrap-project.sh",
+    "Rules/README.md",
+    "Rules",
+    "Lab/protforge/log"
   ]
 }
