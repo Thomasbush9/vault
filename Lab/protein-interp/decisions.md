@@ -280,7 +280,7 @@ Meeting points:
 	- What about same input sequence but input msa from the first recylcin step
 - Check discrete flow mapping for proteinMPNN model 
 
-[[MSA Sanity Check]]
+[[2026-05-01-msa-sanity-check|MSA Sanity Check]]
 
 At the moment we have seen that the msa for the mutants is basically a subset of the original msa. Thus, we should start to think about how to change it to improve the model
 
@@ -310,5 +310,8 @@ Experiments 04-28,29
 
 
 Verify the current updates with codex + tests. 
+
+
+- Do gradient attribution and check it with different inputs to understand whether the final prediction makes sense or no
 
 

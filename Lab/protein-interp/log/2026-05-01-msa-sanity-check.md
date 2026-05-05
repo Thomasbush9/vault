@@ -36,5 +36,12 @@ We can see a high tm-score (above pure noise) even with a random sequence 0.33. 
 - output: structure predictions + tm-scores
 - Caveat: we want to use some n examples like 10 sequence per perturbation level
 
+Experiments 05/04: 
+
+- Run calibration scripts for Protforge [X]
+- Read interpretability papers for Boltz 
+- study more interpretability analysis [X]
+- try to add the new nvidia boltz -> tomorrow 
+
 
 
