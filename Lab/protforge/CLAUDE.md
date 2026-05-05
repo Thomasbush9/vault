@@ -4,10 +4,14 @@ ProtForge is the pipeline / tooling used by `protein-interp` for sequence genera
 
 ## Where things are
 
-- `agenda.md` — features to add / TODOs.
+- `agenda.md` — features to add / TODOs / current focus.
 - `repo.md` — GitHub repo + setup.
-- `lit.md`, `decisions.md`, `data.md` — empty stubs.
+- `data.md` — cluster paths and run IDs (e.g. active calibration outputs).
+- `decisions.md` — design choices that shouldn't get re-litigated.
+- `calibration.md` — durable reference for the resource-calibration workflow (subsample → calibrate.sh → analyze → refit). Reads alongside repo `slurm_scripts/calibrate.sh` and `scripts/calibrate/`.
+- `log/` — experimental log entries, one per discrete experiment (`YYYY-MM-DD-<slug>.md`).
+- `lit.md` — empty stub.
 
 ## Default load
 
-Autoload `agenda.md`. Most "current state" lives in the actual repo; this folder is for design notes only.
+Autoload `agenda.md` and the most recent `log/` entry. For calibration work, also pull `calibration.md` and `data.md` (cluster paths). Code-level state lives in the repo (`/Users/thomasbush/Documents/ML/ProtForge/`).

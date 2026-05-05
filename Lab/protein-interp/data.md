@@ -23,3 +23,9 @@ All four share the same WT UniRef MSA hits; only row 0 (the query) differs.
 
 - Script: `scripts/run_boltz_attention.py` with `boltz_attention_config.yaml`.
 - Key flags: `layer_sites: [pwa_weights]`, `recycling_steps: 10`, `recycling_steps_to_save: "0,5,-1"`, `msa_layers: all`, `average_heads: false`, `no_kernels: true`.
+
+## Papers
+
+- Local store: `/Users/thomasbush/tmp-data/tmp_data/papers/` (Pi-mirrored, rsync on demand).
+- Index: `papers/README.md` lists each PDF, what it contributes, and reading order. Five PDFs auto-downloaded; six bioRxiv/PNAS papers blocked by Cloudflare and need manual browser download (commands in the README).
+- See also `lit.md` for the scoping summary of those papers.

@@ -2,8 +2,8 @@
 
 GitHub repo + setup for protein-interp.
 
-- **URL:** `<fill in>`
-- **Local path on Mac Mini:** `<fill in>`
+- **URL:** `git@github.com:Thomasbush9/protein_interpretability.git`
+- **Local path on Mac Mini:** `~/Documents/ML/protein_interpretability`
 - **Local path on MBP:** `<fill in>`
 
 ## Notebooks
