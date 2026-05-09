@@ -314,4 +314,16 @@ Verify the current updates with codex + tests.
 
 - Do gradient attribution and check it with different inputs to understand whether the final prediction makes sense or no
 
+## Gradient attribution tool — design decisions (2026-05-05)
+
+Locked-in choices for the new attribution pipeline (full design at `log/2026-05-05-gradient-attribution-design.md`):
+
+- **Loss = distogram logits**, not coordinates / structure module output. Reason: distogram is deterministic (pre-diffusion), so backward graph has no stochastic SDE — clean, reproducible gradients. Matches what the Chakravarty et al. paper uses (contact maps) for the same reason.
+- **Two attribution surfaces in v1**: query embedding (N, D) and MSA embedding (S, N, D). Pair-representation gradient capture deferred to v2 — full graph across K=10 recycles is likely the memory killer, and embedding grads alone answer the first-order question (does query info still drive output by recycle 10?).
+- **Per-step separate forwards by default**: one forward+backward at each K ∈ {0, 5, 10}. Memory bounded to one forward's worth, not K stacked. Matches the paper's R0-vs-RN probing structure exactly. Single-pass capture stays as opt-in config flag for v2 (pair-rep) once memory budget is known.
+- **Input × gradient** as default; integrated gradients only for the chromophore case study (cost reasons).
+- **Module layout mirrors the attention pipeline** (`attribution/{targets,capture,runner,io,cli}.py` + `scripts/run_boltz_gradients.py`) — same config-driven multi-GPU fan-out pattern, same per-record `.pt` output schema (versioned, with provenance).
+- Three-PR rollout: (1) targets/capture/io + CPU smoke test (embedding grads only, per-step forwards); (2) runner + CLI + cluster orchestration; (3) opt-in single-pass mode + per-recycle pair-rep gradients, once v1 memory profile is known.
+- First validation = GFP chromophore mutants (S65T, Y66H/W/F, G67A, R96M, E222Q + surface control), R0 vs R10 attribution.
+
 
