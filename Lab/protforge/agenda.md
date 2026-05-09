@@ -8,6 +8,8 @@ Current focus and the next 1–3 concrete things. When done, fold into a `log/` 
 - [ ] Wire `--chunk_size_threshold` (and `--chunk_size 64`) into `workflow/rules/esmfold.smk` so the Snakemake rule matches what the estimator predicts. Today the script's defaults (1200, 64) match by accident; should be config-driven to avoid drift.
 - [ ] Fix `slurm_scripts/run_esmfold.py:117-120` — bare `except Exception` swallows CUDA OOM. Re-raise OOM (or write a sentinel file) so the rule fails properly instead of silently touching `chunk_*.done` with no PDB.
 
+- [ ] Change chunks division: currently we divide the dataset into chunks randomly, but we should do the following: check sequence length distribution-> map it into bins and create chunks for each bin with bin-specific resources. In this way, chunks mapped to the length 100aa will requires less resources + more sequences than chunks of the bin 1k aa and so on. → detailed plan in [[bin-aware-chunking]].
+- [ ] Check whether to use a different msa model/alg such as jackhammer to improve it. 
 ## Done today (2026-05-05)
 
 - v3 H100 calibration finished cleanly. All 18 ESMFold chunks now produce a `structure.pdb` (incl. 1801aa, 2039aa) thanks to per-seq trunk chunking. See `log/2026-05-05-h100-calibration-v2.md` (incl. v3 update at the end).
