@@ -3,6 +3,13 @@
 For the "workflow download" meeting. No slides, just talking. Goal: practical
 description of current + anticipated cluster workflow. Skip scientific motivation.
 
+
+- Pipeline to generate protein structure/function data managed by a webapp so that it can be used by people without experience. It is managed using snakemake to deal with launching jobs and checking deps. Currently given the inputs it fits the resources based on the number of inputs + lenght and it launches array jobs for each chunk. 
+- Each model fits into a single gpu, although for some inputs we reach a OOM -> but there are options 
+- Sharing: both kempner specific version and soon container based one 
+- Inference based. 
+- As for the next steps we are going to build a similar pipeline but for protein design + agents
+
 ## 30-second framing
 
 ProtForge = ML pipeline orchestrator for protein structure/function. Today it's
