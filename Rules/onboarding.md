@@ -5,6 +5,7 @@ Standing session-start instructions for working with me on any project. I'll @-r
 ## What you have
 
 - The **code repo** for the current project (your launch directory).
+- The code should be run using the .venv created with uv inside the code directory, please refrain from using a general python invocation. If the .venv is not present you should ask for clarification as sometimes we have a conda env. On the other hand, on the cluster, we run code only using "mamba" for heavy jobs.
 - My **Lab environment** at `~/Documents/Vault/Notes/Lab/<project>/`, added via `--add-dir`. This is the project's notes folder, synced via git separately from the code.
 - The vault rules at `~/Documents/Vault/Notes/Rules/` — convention details if you need them.
 

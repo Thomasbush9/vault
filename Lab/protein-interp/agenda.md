@@ -8,11 +8,18 @@ Pivot from "single-protein GFP IG attribution" → **replicate a known memorizat
 
 ### Phase 1 — Replicate (this week)
 
-- [ ] **MSA decision**: Boltz auto-MMseqs2 (current YAMLs) vs Porter's Zenodo MSAs (10.5281/zenodo.13221957). Default to auto unless we want exact reproducibility against the paper's TM-score numbers.
-- [ ] **Cluster wrapper**: tiny shim around `boltz predict` for SLURM job array (one task per YAML, parallels `run_boltz_extract.slrm`). User estimates ~2 h wall time on H100 fleet.
-- [ ] **Locate the 7 out-of-training-set fold-switchers** (the 14 % control). Not in TableS1 — likely in a different supplementary file. Needed for the headline `(in-set %) − (out-of-set %)` gap.
-- [ ] **Decide on the 1369 aa outlier** (`4zt0C/4cmqB`): chunk, exclude, or run separately with reduced settings.
-- [ ] **Score**: per prediction, compute TM-score(G1) and TM-score(G2) using `tmtools` against PDB-downloaded G1/G2 .cif structures. Report the success-rate gap.
+- [x] **MSA decision**: went with Porter's Zenodo deep MSAs (10.5281/zenodo.13221957) for tightest reproducibility against the paper's numbers. YAMLs finalised with absolute msa paths.
+- [x] **Cluster wrapper**: SLURM array around `boltz predict` — one task per YAML. Predictions complete for all 92 in-set pairs (2026-05-10).
+- [x] **`seq_00043` (1369 aa) survived** — predicted on H100, top cif present at `outputs/sequences/seq_00043/boltz/seq_00043_model_24.cif`.
+- [x] **Pin Boltz output layout:** `outputs/sequences/seq_NNNNN/boltz/seq_NNNNN_model_*.cif`, one cif per dir.
+- [x] **Extend `score_sequences.py`** with `--pairs-manifest`/`--refs-dir` (download-from-RCSB capability removed — refs are staged locally from Porter's AF2Rank dump and rsync'd if needed). Also fixed greedy seq-idx regex and added per-chain naming (`<pdb>_<chain>.pdb`) fallback in `resolve_reference`.
+- [x] **Pairs-mode scoring run locally** (data is all on this Mac now). Output: `tm_scores.csv`, 92/92 pairs, no skips.
+- [x] **Headline numbers + Porter cross-check + fold-switch region restriction** — all in `log/2026-05-10-phase1-scoring-plan.md` "Results" section. Whole-chain TM>0.6 vs both = 62 % (matches ACE 61 %, well above All_AF 35 %); region-restricted RMSD<2Å vs both = 33 % (scaffold inflation explains the 62→33 drop); 36 net-new "both" successes not in any Porter AF list.
+- [ ] **Recycle confound — re-run at `--recycling_steps 3`** (AF default parity). Phase 1 was run at recycles=10, which is not directly comparable to Porter's numbers. This is the load-bearing baseline.
+- [ ] **Locate the 7 out-of-training-set fold-switchers** (the 14 % control). Not in TableS1 — try other supporting xlsx (`Data_FigS3_revised.xlsx`, `data_FigS4_revised.xlsx`, `data_FigS5.xlsx`, `data_FigS6.xlsx`, `TableS3_revised.xlsx`) or `notes/` text in AF2_benchmark. Needed for the in-set vs out-of-set gap.
+- [ ] **Lift region-restricted scoring into a `--region-mode` flag of `score_sequences.py`** (currently in-session inline script — works but should be a CLI for repeat use).
+- [ ] **Spot-check oddities**: the 3 pairs AF2.3.1 hits but Boltz doesn't (`2a73b/3l5nb`, `2k0qa/2lela`, `2kxoa/3r9jc`); the 6 region-restriction drops (`seq_00009`, `seq_00026`, `seq_00040`, `seq_00054`, `seq_00064`, `seq_00069`).
+- [ ] **Cleanup** — decide which GFP-arc scripts (`run_chromophore_attribution.py`, `analyze_chromophore_block.py`, `plot_chromophore_attribution.py`, `augment_*.py`, `build_seq_perturb_dataset.py`, `sample_mutations.sh`, `run_query_occlusion.py`) to delete vs keep parked.
 
 ### Phase 2 — Ablate (next week)
 
@@ -55,7 +62,14 @@ The tooling from the GFP work is reusable; the case study is parked.
 - [x] First pass of TableS1: 92/93 sequences resolved (1 obsolete PDB skipped); length distribution median=234, max=1369.
 - [x] `scripts/foldswitch_extract_zenodo_msa.py`: pulls deep ColabFold MSAs from Porter's Zenodo dump (`AFcluster_MSAs/` standalone + bulk `sub_*` archives, with auto-concat of split pieces). 92/92 coverage (88 Fold1, 4 Fold2 fallback).
 - [x] `scripts/foldswitch_finalize.py`: renames to `seq_NNNNN.{yaml,a3m}` (5-digit), writes `identities.tsv`, rewrites `msa:` lines to relative or absolute (--abs_root) paths. Idempotent.
-- [x] User rsynced `yamls/` + `msa/` to cluster at `/n/holylfs06/LABS/bsabatini_lab/Everyone/tbush/protein_rsa/foldswitch/`. **Pending: run `foldswitch_finalize.py --abs_root …` on cluster to absolute-ize msa paths, then launch Phase 1 predictions.**
+- [x] User rsynced `yamls/` + `msa/` to cluster at `/n/holylfs06/LABS/bsabatini_lab/Everyone/tbush/protein_rsa/foldswitch/`, ran `foldswitch_finalize.py --abs_root` on cluster, launched Phase 1.
+
+## Done — 2026-05-10
+
+- [x] **Phase 1 predictions complete** — Boltz-2 produced predicted `.cif` for all 92 in-set fold-switchers (rsynced to local Mac). Settings: `--recycling_steps 10 --diffusion_samples 25 --override`, top-confidence sample kept per protein.
+- [x] **Extended `score_sequences.py`** with pairs mode (`--pairs-manifest`, `--refs-dir`) reusing `scoring/utils.py` primitives. Per-chain naming + full-structure fallback in `resolve_reference`. CLI verified under `uv run`.
+- [x] **Phase 1 scoring done** locally over all 92 pairs. Whole-chain CSV + fold-switch region CSV both written under `/Users/thomasbush/tmp-data/tmp_data/foldswitch/`.
+- [x] **Porter cross-check** vs `success_using_TMscore_metric_revised.xlsx` — set overlap with AF2.3.1/AF3/AF_Cluster/ACE per-method success lists. 36 net-new "both" successes not in any AF method. Recycle confound (10 vs 3) identified.
 
 ## Done — 2026-05-07
 
