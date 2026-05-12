@@ -9,7 +9,6 @@ description of current + anticipated cluster workflow. Skip scientific motivatio
 - Sharing: both kempner specific version and soon container based one 
 - Inference based. 
 - As for the next steps we are going to build a similar pipeline but for protein design + agents
-
 ## 30-second framing
 
 ProtForge = ML pipeline orchestrator for protein structure/function. Today it's
