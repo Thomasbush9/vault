@@ -21,6 +21,17 @@ Pivot from "single-protein GFP IG attribution" → **replicate a known memorizat
 - [ ] **Spot-check oddities**: the 3 pairs AF2.3.1 hits but Boltz doesn't (`2a73b/3l5nb`, `2k0qa/2lela`, `2kxoa/3r9jc`); the 6 region-restriction drops (`seq_00009`, `seq_00026`, `seq_00040`, `seq_00054`, `seq_00064`, `seq_00069`).
 - [ ] **Cleanup** — decide which GFP-arc scripts (`run_chromophore_attribution.py`, `analyze_chromophore_block.py`, `plot_chromophore_attribution.py`, `augment_*.py`, `build_seq_perturb_dataset.py`, `sample_mutations.sh`, `run_query_occlusion.py`) to delete vs keep parked.
 
+Explore when boltz can threshold both strutures -> 
+
+- do esm sae on predicted binders
+- confermational bias with proteinmpnn
+- Sergey: AF performs very local energy optim=> not doing well without msa-> complex energetic landscape-> msa makes you start at the spot closer to the truth-> synthetic proteins are predicted much better than real proteins 
+- Look at the template injection
+- how can you sample the energy landscape more broadly instead of using the msa: 
+- model energy instead of structure 
+- diffusion guided by the energy term: ranking protein stability-> better performances when stop before the full inverse diffusion process-> boltz mutation effect on the previous diffusion 
+- TCR design: specificity -> give the whole complex + mask one aa in the peptide -> recover the sequence of the peptide with high confidence 
+- 
 ### Phase 2 — Ablate (next week)
 
 - [ ] **Single-sequence run** (`--msa_mode empty`). Already supported by `foldswitch_setup.py`; just regenerate YAMLs to a parallel out-dir.
