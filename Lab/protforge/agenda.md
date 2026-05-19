@@ -2,6 +2,13 @@
 
 Current focus and the next 1–3 concrete things. When done, fold into a `log/` entry; when parked, move to `decisions.md`.
 
+## Now — container branch (2026-05-16)
+
+- [ ] Verify yesterday's build landed where expected (`find $TBUSH -name '*.sif'`); the user reported empty `sifs/`+`sing_cache/` at one point — most likely stale stubs at the wrong path. See `log/2026-05-15-build-sh-bugfixes.md`.
+- [ ] Stage-1 E2E test (post-build): single real-protein FASTA → MSA + Boltz + ESM + ESMFold through the SIF + bind-mounted DBs. Sketch is `containers/test/e2e.sh` (not built yet — design pending in the convo).
+- [ ] **Container audit punch list — 15 items, grouped by priority.** Full list: [[container-audit]]. Suggested first PR bundles H1+H3+H5 (`--cleanenv`, `:ro` on DB binds, `/tmp` bind from `$SLURM_TMPDIR`).
+- [ ] Apptainer vs Singularity evaluation — see [[container-audit]] L14 tie-in. Research is in flight as a background agent.
+
 ## Now — close out today (2026-05-05)
 
 - [ ] Commit + push `webapp/scaling_models.yaml` + `webapp/estimator.py` (v3 calibrated h100 coefficients, ESMFold two-regime chunking split). Currently uncommitted on `webapp` branch.
