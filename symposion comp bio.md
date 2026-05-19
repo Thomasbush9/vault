@@ -1,0 +1,1 @@
+encode local env of the protein
