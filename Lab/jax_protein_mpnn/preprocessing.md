@@ -97,28 +97,28 @@ For each item in the batch:
 five `*_list_list` outputs and `tied_pos_list_of_lists_list` are plain Python
 lists (variable-length per sample → cannot be tensorized).
 
-| # | Name | Shape | dtype | Meaning |
-|---|------|-------|-------|---------|
-| 1 | `X` | `[B, L, 4, 3]` or `[B, L, 3]` | f32 | Backbone coords (N, Cα, C, O) per residue. NaNs zeroed; padded residues are zeros. |
-| 2 | `S` | `[B, L]` | i32 | Ground-truth AA tokens. Index into `ALPHABET`. Padded with 0 (=`A`); use `mask` to ignore padding in loss. |
-| 3 | `mask` | `[B, L]` | f32 | 1.0 if residue is fully observed, 0.0 otherwise (missing atoms **or** padding). |
-| 4 | `lengths` | `[B]` | i32 | Unpadded concatenated length per sample. |
-| 5 | `chain_M` | `[B, L]` | f32 | **Design mask.** 1.0 = residue belongs to a masked chain (we want to design it); 0.0 = visible chain (conditioning). |
-| 6 | `chain_encoding_all` | `[B, L]` | i32 | Chain ID, 1-indexed in the order chains appear in the concatenated sequence. |
-| 7 | `letter_list_list` | `list[list[str]]` | — | Chain letters per sample, in concat order. Bookkeeping for output writing. |
-| 8 | `visible_list_list` | `list[list[str]]` | — | Subset of letters that are visible (conditioning). |
-| 9 | `masked_list_list` | `list[list[str]]` | — | Subset of letters that are designable. |
-| 10 | `masked_chain_length_list_list` | `list[list[int]]` | — | Lengths of each masked chain per sample. |
-| 11 | `chain_M_pos` | `[B, L]` | f32 | **Free-position mask** *within* designable chains. 1.0 = free to be redesigned, 0.0 = fixed to wild-type. Independent of `chain_M`. |
-| 12 | `omit_AA_mask` | `[B, L, 21]` | i32 | 1 = forbid this AA at this position at sampling time. |
-| 13 | `residue_idx` | `[B, L]` | i32 | Per-residue absolute index with `+100` bumps at chain boundaries. Padding = -100. Drives the relative-positional encoding. |
-| 14 | `dihedral_mask` | `[B, L, 3]` | f32 | φ/ψ/ω validity (1 = neighbours are sequentially adjacent). |
-| 15 | `tied_pos_list_of_lists_list` | `list[list[list[int]]]` | — | Groups of global indices that must decode to the same AA (homomer constraints). |
-| 16 | `pssm_coef_all` | `[B, L]` | f32 | Mixing weight in `[0, 1]` between model logits and external PSSM at each position. Default 0 = ignore PSSM. |
-| 17 | `pssm_bias_all` | `[B, L, 21]` | f32 | Additive logit bias from PSSM. |
-| 18 | `pssm_log_odds_all` | `[B, L, 21]` | f32 | Hard filter at sampling: only sample AAs whose log-odds exceed a threshold. Default `1e4` = no constraint. |
-| 19 | `bias_by_res_all` | `[B, L, 21]` | f32 | Additive logit bias per (position, AA). |
-| 20 | `tied_beta` | `[B, L]` | f32 | Relative weight of each position within its tied group. Default 1.0. |
+| #   | Name                            | Shape                         | dtype | Meaning                                                                                                                             |
+| --- | ------------------------------- | ----------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `X`                             | `[B, L, 4, 3]` or `[B, L, 3]` | f32   | Backbone coords (N, Cα, C, O) per residue. NaNs zeroed; padded residues are zeros.                                                  |
+| 2   | `S`                             | `[B, L]`                      | i32   | Ground-truth AA tokens. Index into `ALPHABET`. Padded with 0 (=`A`); use `mask` to ignore padding in loss.                          |
+| 3   | `mask`                          | `[B, L]`                      | f32   | 1.0 if residue is fully observed, 0.0 otherwise (missing atoms **or** padding).                                                     |
+| 4   | `lengths`                       | `[B]`                         | i32   | Unpadded concatenated length per sample.                                                                                            |
+| 5   | `chain_M`                       | `[B, L]`                      | f32   | **Design mask.** 1.0 = residue belongs to a masked chain (we want to design it); 0.0 = visible chain (conditioning).                |
+| 6   | `chain_encoding_all`            | `[B, L]`                      | i32   | Chain ID, 1-indexed in the order chains appear in the concatenated sequence.                                                        |
+| 7   | `letter_list_list`              | `list[list[str]]`             | —     | Chain letters per sample, in concat order. Bookkeeping for output writing.                                                          |
+| 8   | `visible_list_list`             | `list[list[str]]`             | —     | Subset of letters that are visible (conditioning).                                                                                  |
+| 9   | `masked_list_list`              | `list[list[str]]`             | —     | Subset of letters that are designable.                                                                                              |
+| 10  | `masked_chain_length_list_list` | `list[list[int]]`             | —     | Lengths of each masked chain per sample.                                                                                            |
+| 11  | `chain_M_pos`                   | `[B, L]`                      | f32   | **Free-position mask** *within* designable chains. 1.0 = free to be redesigned, 0.0 = fixed to wild-type. Independent of `chain_M`. |
+| 12  | `omit_AA_mask`                  | `[B, L, 21]`                  | i32   | 1 = forbid this AA at this position at sampling time.                                                                               |
+| 13  | `residue_idx`                   | `[B, L]`                      | i32   | Per-residue absolute index with `+100` bumps at chain boundaries. Padding = -100. Drives the relative-positional encoding.          |
+| 14  | `dihedral_mask`                 | `[B, L, 3]`                   | f32   | φ/ψ/ω validity (1 = neighbours are sequentially adjacent).                                                                          |
+| 15  | `tied_pos_list_of_lists_list`   | `list[list[list[int]]]`       | —     | Groups of global indices that must decode to the same AA (homomer constraints).                                                     |
+| 16  | `pssm_coef_all`                 | `[B, L]`                      | f32   | Mixing weight in `[0, 1]` between model logits and external PSSM at each position. Default 0 = ignore PSSM.                         |
+| 17  | `pssm_bias_all`                 | `[B, L, 21]`                  | f32   | Additive logit bias from PSSM.                                                                                                      |
+| 18  | `pssm_log_odds_all`             | `[B, L, 21]`                  | f32   | Hard filter at sampling: only sample AAs whose log-odds exceed a threshold. Default `1e4` = no constraint.                          |
+| 19  | `bias_by_res_all`               | `[B, L, 21]`                  | f32   | Additive logit bias per (position, AA).                                                                                             |
+| 20  | `tied_beta`                     | `[B, L]`                      | f32   | Relative weight of each position within its tied group. Default 1.0.                                                                |
 
 ## 4. Theory — why each tensor exists
 

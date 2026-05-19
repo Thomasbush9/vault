@@ -19,13 +19,13 @@ The whole pipeline is **rotation- and translation-invariant** because every feat
 
 ### `ProteinFeatures.__call__`
 
-| Argument | Shape | Meaning |
-|---|---|---|
-| `X` | `[B, L, 4, 3]` | Backbone coords. Atom order: N (0), Cα (1), C (2), O (3). |
-| `mask` | `[B, L]` | 1 = valid residue, 0 = padding. |
-| `residue_idx` | `[B, L]` | Sequence index per residue (with a large gap between chains so cross-chain offsets exceed `max_relative_feature`). |
-| `chain_labels` | `[B, L]` | Integer chain id. |
-| `noise_key` | PRNGKey or None | If `augment_eps > 0`, adds Gaussian noise to coords (data augmentation). |
+| Argument       | Shape           | Meaning                                                                                                            |
+| -------------- | --------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `X`            | `[B, L, 4, 3]`  | Backbone coords. Atom order: N (0), Cα (1), C (2), O (3).                                                          |
+| `mask`         | `[B, L]`        | 1 = valid residue, 0 = padding.                                                                                    |
+| `residue_idx`  | `[B, L]`        | Sequence index per residue (with a large gap between chains so cross-chain offsets exceed `max_relative_feature`). |
+| `chain_labels` | `[B, L]`        | Integer chain id.                                                                                                  |
+| `noise_key`    | PRNGKey or None | If `augment_eps > 0`, adds Gaussian noise to coords (data augmentation).                                           |
 
 Returns:
 

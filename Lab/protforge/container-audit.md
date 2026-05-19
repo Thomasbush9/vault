@@ -28,30 +28,35 @@ won't fix (with rationale).
   see `boltz.smk:156`). Re-grep `workflow/rules/*.smk` for `export ` before
   the next real run to catch any that don't.
 
-- [ ] **H2. `%files . /opt/protforge` drags in `.git/` and any local files.**
-  `containers/protforge-gpu.def:20-23`. Real reproducibility + secrets risk
-  (deleted credentials in git history, local `config.yaml`).
-  *Fix:* explicit allow-list (`workflow/`, `slurm_scripts/`, `utils/`,
-  `scripts/`, `Snakefile`, `config.template.yaml`) or stage via
-  `git archive HEAD | tar -x -C $stage` before build.
+- [~] **H2. `%files . /opt/protforge` drags in `.git/` and any local files.**
+  `containers/protforge-gpu.def:20-23`. Real reproducibility + secrets risk.
+  *Partial 2026-05-19* — `.singularityignore` covers `.git`, `.venv`,
+  `.sessions`, `config.yaml`, `*.sif`, `sing_cache`, `sing_tmp`,
+  `build-logs`, `smoke-logs`, container test outputs, logs, secrets/key
+  patterns. Smoke step `[3/7] Image content` now asserts these paths are
+  absent from the baked image AND that `slurm_scripts/run_esm.py` /
+  `slurm_scripts/run_esmfold.py` / `Snakefile` ARE present.
+  *Still TODO:* convert `%files` to an explicit allow-list (or
+  `git archive HEAD` staging) so the smoke test isn't the only line of
+  defense. Allowlist is the brief's recommended target.
 
-- [~] **H3. `bind_paths` default mounts whole filesystems read-write.**
-  *Partial 2026-05-16* — `container_cmd()` parser now accepts
-  `host:container:ro` and `host:container` entries (backward-compatible
-  with bare `host`). Users can opt into `:ro` for DBs in their config.
-  *Still TODO:* drop the `/n/home06` default in `Snakefile:128` (currently
-  blanket-binds every user's home for compat) and update the
-  `config.template.yaml:143` example to show the `:ro`-tagged DB paths.
-  Defer until after first real-config run validates the parser doesn't
-  break existing setups.
+- [x] **H3. `bind_paths` default mounts whole filesystems read-write.**
+  *Done 2026-05-19* — `_parse_bind()` shell-quotes each `-B` arg and
+  rejects modes outside `{ro,rw}`. `config.template.yaml` default
+  `bind_paths` now binds `/data/colabfold_db` and `/data/boltz_db` as
+  `:ro` against the Kempner-shared DB paths, plus a narrow writable
+  `/n/home06/<YOUR_USER>` bind. The Snakefile auto-binds
+  `${SLURM_TMPDIR:-/tmp}:/tmp` for scratch.
+  *Watch:* labs whose repo + output live on a `holylfs06/LABS/<lab>/...`
+  path need to add their own writable bind entry.
 
-- [ ] **H4. Schema mismatch — `containers:` block lists 5 per-stage SIFs.**
-  `config.template.yaml:137-142`. We ship ONE fat SIF. Users could set
-  `containers.boltz` and silently get legacy `module load` for ESM/MSA.
-  *Fix:* collapse to `containers.gpu:` (+ future `containers.cpu_mpi:` for
-  the ES image). Rewrite `container_cmd(stage)` to dispatch by capability
-  (`gpu`/`mpi`), not stage name. We flagged this earlier in the design log
-  too — still open.
+- [x] **H4. Schema mismatch — `containers:` block lists 5 per-stage SIFs.**
+  *Done 2026-05-19* — `Snakefile:container_cmd()` now resolves the SIF as
+  `CONTAINERS.get(stage, "") or CONTAINERS.get("gpu", "")` so the
+  README-documented `containers.gpu` works. Per-stage keys remain
+  supported as overrides (for the future split image, e.g. PDAnalysis
+  MPI). `config.template.yaml` reorganised: `gpu:` is the primary,
+  per-stage keys documented as optional overrides.
 
 - [x] **H5. `/tmp` inside the container is the host's tiny tmpfs.**
   *Done 2026-05-16* — `container_cmd()` appends
@@ -70,6 +75,11 @@ won't fix (with rationale).
   models, different results.
   *Fix:* `requirements-container.txt` seeded from `pip freeze` of the first
   good build; `pip install --no-deps -r ... && pip check`. Bump deliberately.
+  *Adjacent (script-path mismatch — was Brief #4, fixed 2026-05-19):*
+  `esm.smk:111` and `esmfold.smk:192` previously called
+  `/opt/protforge/run_esm.py` / `run_esmfold.py`; corrected to
+  `/opt/protforge/slurm_scripts/run_*.py`. Smoke step `[3/7]` guards
+  against regression by asserting these files exist inside the SIF.
 
 - [ ] **M7. Manual `if container_cmd then ... else module load` in all rules**
   vs Snakemake's native `container:` directive. Tradeoff: manual keeps the
@@ -134,8 +144,43 @@ won't fix (with rationale).
 
 1. **container_cmd refactor:** H1 + H3 + H5 (single touch surface — add
    `--cleanenv`, `:ro` on DBs, bind `/tmp` from SLURM_TMPDIR).
+   *Done 2026-05-19.*
 2. **Schema + migration call:** H4 + M7 (decide whether to migrate to
    native `container:` directive; collapse `containers:` block either way).
+   *H4 done 2026-05-19; M7 still open.*
 3. **Reproducibility:** H2 + M6 + M10 (allow-list `%files`, pin pip deps,
-   pin pip itself).
+   pin pip itself). *H2 partial 2026-05-19 (smoke assertion + ignore list);
+   M6 + M10 require rebuild.*
 4. Remaining mediums and lows as time permits.
+
+---
+
+## Brief checklist (containers/CONTAINERIZATION_AGENT_BRIEF.md — 2026-05-19 pass)
+
+- [x] **Brief #1** Build context leakage — `.singularityignore` + smoke
+  step `[3/7] Image content` assertion. (See H2 above for allowlist
+  follow-up.)
+- [ ] **Brief #2** Mutable supply chain — defer until next rebuild
+  (M6/M10).
+- [x] **Brief #3** Snakemake container contract drift — `containers.gpu`
+  fallback in `Snakefile:container_cmd()`; template updated.
+- [x] **Brief #4** In-container script path mismatch — rules now call
+  `/opt/protforge/slurm_scripts/run_*.py`.
+- [x] **Brief #5** Bind mounts too broad / writable — `_parse_bind()`
+  shell-quotes and validates mode; template default is now `:ro` DB
+  binds + narrow user-home writable bind.
+- [x] **Brief #6** Baked weights bypass — `esm.smk` / `esmfold.smk` only
+  inject `--env HF_HOME=...` when the user sets `cache_dir`; otherwise
+  pass `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1` so the SIF's
+  `/opt/weights/hf` default is used.
+- [x] **Brief #7** Host webapp env spec — `requirements-host.txt` at
+  repo root (snakemake + slurm plugin + streamlit + utils);
+  `pyproject.toml` gains a `host` extras group mirroring it.
+- [ ] **Brief #8** Stage-1 E2E test — still on `containers/TESTING.md`,
+  not scripted.
+
+Remaining cluster-side prereq (not in the brief): SIF currently has no
+ESMFold weight files in `models--facebook--esmfold_v1/snapshots/`.
+Smoke step `[6/7]` will keep failing until the def file's HF prefetch is
+fixed and the image is rebuilt — best tackled together with Brief #2's
+revision pins.
