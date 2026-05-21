@@ -20,8 +20,8 @@ The forward pass during training is:
 node_h, edge_h    ← _encode_graph(E, E_idx, mask)          # §2  encoder
 seq_h             ← W_s(S)                                 # token embeddings
 seq_edge_h        ← cat_neighbors_nodes(seq_h, edge_h, E_idx)
-enc_context       ← _build_encoder_context(...)            # §3.2 skip pathway
-fwd_mask, bwd_mask ← _build_decoder_masks(decode_noise)    # §3.3 autoreg mask
+enc_context       ← _build_encoder_context(...)            # §3.4 skip pathway
+fwd_mask, bwd_mask ← _build_decoder_masks(decode_noise)    # §3.5 autoreg mask
 node_h            ← _run_decoder(node_h, seq_edge_h, ...)  # §3  decoder
 logits            ← W_out(node_h)
 return log_softmax(logits)                                  # [B, L, 21]
@@ -221,14 +221,85 @@ embeddings the decoder will condition on.
 
 ## 3. Decoder
 
-The decoder is where the **autoregressive sequence model** lives. During
-training it runs in one parallel pass with a triangular mask; during inference
+The decoder turns the encoder's structural embedding `(node_h_enc, edge_h_enc)`
+into per-residue log-probabilities over the 21-token vocabulary. During
+training it runs in one parallel pass with a permutation mask; during inference
 it loops residue by residue in a chosen decoding order. The clever bit (this
 is the key idea of ProteinMPNN) is that **both modes use the exact same
 `DecLayer`** — the only difference is the mask and whether the loop is
 materialized.
 
-### 3.1 Sequence embedding
+### 3.1 What the decoder computes — and why
+
+Formally the decoder factorizes the conditional sequence likelihood as
+
+```
+p(S | X) = ∏_i p(s_{π(i)} | s_{π(<i)}, X)
+```
+
+where `π` is a permutation of residue positions (sampled fresh each step at
+training time, chosen explicitly at inference). Three design choices fall out
+of wanting this factorization to be cheap and order-agnostic:
+
+1. **Autoregressive over independent.** An independent per-residue classifier
+   `∏_i p(s_i | X)` discards all residue-residue coupling — charge networks,
+   hydrogen-bond donor/acceptor matching, hydrophobic packing all require that
+   adjacent residue identities are coordinated. The AR factorization lets each
+   conditional see the structure **and** all earlier sequence decisions,
+   without the model ever needing to represent the full joint.
+
+2. **Random permutation, not N→C order.** Following Ingraham et al. 2019,
+   training on a uniform distribution over permutations makes the decoder
+   robust to *any* decoding order. At inference you can then start with a
+   binding pocket and radiate outward, honor symmetric tied positions, or draw
+   multiple sequences from independent orders for diversity. A fixed
+   left-to-right order would bake in sequence-direction priors that don't
+   generalize across these use cases.
+
+3. **MPNN over cross-attention.** The decoder reuses the encoder's K-NN graph
+   and the same node-update primitive — no new pairwise machinery. Sequence
+   identity enters through the **edge slot** of that primitive (each encoder
+   edge `e_ij` is concatenated with the neighbor identity `s_j`), not through
+   a separate attention head. This keeps the decoder small (3 layers) and
+   pushes the heavy structural reasoning into the encoder, which runs once.
+
+4. **Edges frozen, only nodes evolve.** The encoder already produced a rich
+   pairwise embedding; the decoder's only job is to fold sequence identity
+   into the per-residue state. Updating edges again per decoder layer would
+   waste compute and risk leaking *future* sequence into the structural
+   channel.
+
+The mechanism that makes the AR factorization tractable in one parallel pass
+is the **forward/backward mask split** (§3.5): for each edge slot `(i, j)`,
+the decoder either uses full sequence-bearing context (when `j` is earlier
+than `i` in the order) or sequence-blind structural context (when `j` is
+later). Summing the two over the K-neighbor axis at every position gives
+exactly the AR conditional — no looping during training, no KV cache.
+
+### 3.2 Inputs, transforms, outputs
+
+| Stage | Tensor | Shape | Contents |
+|---|---|---|---|
+| **Inputs** | `node_h_enc` | `[B, L, H]` | structure-only node embedding (encoder output) |
+|  | `edge_h_enc` | `[B, L, K, H]` | structure-only edge embedding (encoder output) |
+|  | `S` | `[B, L]` int | sequence tokens — true labels at train time, running buffer at inference |
+|  | `E_idx`, `mask`, `chain_M`, `chain_M_pos` | `[B, L, K]`, `[B, L]`, … | K-NN graph + padding + designable-position masks |
+|  | `decode_noise` | `[B, L]` | per-position scalars used to draw the random permutation |
+| **Transforms** | `seq_h = W_s(S)` | `[B, L, H]` | embed sequence (only place identity enters the model) |
+|  | `seq_edge` | `[B, L, K, 2H]` | `[e_ij ‖ s_j]` — encoder edge tagged with neighbor identity |
+|  | `enc_context` | `[B, L, K, 3H]` | `[node_i_enc ‖ e_ij ‖ 0]` — sequence-blind twin of decoder context |
+|  | `decoding_order` → `(backward_mask, forward_mask)` | `[B, L, K, 1]` each | partition K-neighbors into "decoded before self" vs "after self" |
+|  | per layer: `decoder_ctx` | `[B, L, K, 3H]` | `backward · [node_i_dec ‖ e_ij ‖ s_j]  +  forward · enc_context` |
+|  | per layer: node MPNN update on `(node_h, decoder_ctx)` | `[B, L, H]` | only nodes evolve; edges stay frozen at encoder output |
+| **Output** | `log_softmax(W_out(node_h))` | `[B, L, 21]` | `log p(s_i | s_{<i}, X)` at every position, computed in one pass |
+
+Mental model: the decoder is the encoder's node-update stage repeated 3×, fed
+an edge-slot context that has been *gated* by the autoregressive mask.
+Everything else — the random permutation, the encoder skip path, the
+forward/backward split — is plumbing that produces a per-edge context tensor
+with exactly the right information content for AR training.
+
+### 3.3 Sequence embedding
 
 ```
 seq_h     = W_s(S)                                          # [B, L, H]  21-dim vocab → H
@@ -240,7 +311,7 @@ seq_edge  = cat_neighbors_nodes(seq_h, edge_h_enc, E_idx)   # [B, L, K, 2H]
 **embedding of residue j's identity**. This is the only place sequence
 identity enters the model.
 
-### 3.2 The encoder skip pathway — `_build_encoder_context`
+### 3.4 The encoder skip pathway — `_build_encoder_context`
 
 ```
 zero_seq  = zeros_like(seq_h)
@@ -257,7 +328,7 @@ left: it would be `[node_i_dec ‖ edge_ij ‖ s_j]`. So `enc_context` is the
 
 This twin is what gets mixed in via the forward/backward mask split (next).
 
-### 3.3 Autoregressive mask — `_build_decoder_masks`
+### 3.5 Autoregressive mask — `_build_decoder_masks`
 
 This is the core ProteinMPNN trick. Given a per-residue **decode noise**
 vector (one random scalar per position), we pick a permutation:
@@ -292,7 +363,7 @@ decoder_forward_mask  = mask_i · (1 - attend_mask)    # neighbor j is decoded a
 `backward + forward = mask_i` — these two masks partition the K neighbors of
 each residue into "already decoded" and "not yet decoded."
 
-### 3.4 Mixing encoder context with the partial sequence
+### 3.6 Mixing encoder context with the partial sequence
 
 ```
 encoder_context_forward_masked = decoder_forward_mask · enc_context
@@ -321,7 +392,7 @@ position `i` can only see sequence identities of strictly earlier positions in
 the random decoding order. The structural part is freely available for all
 neighbors (it has to be — that's the conditioning signal).
 
-### 3.5 `DecLayer`
+### 3.7 `DecLayer`
 
 Each decoder layer is essentially the node half of the encoder layer — node
 message-passing + FFN — but with the prepared `decoder_ctx` as the edge slot
@@ -341,7 +412,7 @@ Edge state stays frozen across decoder layers (it's the encoder's output). By
 default the stack is 3 layers — enough to refine `node_h` given the now-mixed
 edge context, but small enough that this is cheap to loop at inference time.
 
-### 3.6 Output head
+### 3.8 Output head
 
 ```
 node_h ← run all decoder layers
