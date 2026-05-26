@@ -278,20 +278,20 @@ exactly the AR conditional — no looping during training, no KV cache.
 
 ### 3.2 Inputs, transforms, outputs
 
-| Stage | Tensor | Shape | Contents |
-|---|---|---|---|
-| **Inputs** | `node_h_enc` | `[B, L, H]` | structure-only node embedding (encoder output) |
-|  | `edge_h_enc` | `[B, L, K, H]` | structure-only edge embedding (encoder output) |
-|  | `S` | `[B, L]` int | sequence tokens — true labels at train time, running buffer at inference |
-|  | `E_idx`, `mask`, `chain_M`, `chain_M_pos` | `[B, L, K]`, `[B, L]`, … | K-NN graph + padding + designable-position masks |
-|  | `decode_noise` | `[B, L]` | per-position scalars used to draw the random permutation |
-| **Transforms** | `seq_h = W_s(S)` | `[B, L, H]` | embed sequence (only place identity enters the model) |
-|  | `seq_edge` | `[B, L, K, 2H]` | `[e_ij ‖ s_j]` — encoder edge tagged with neighbor identity |
-|  | `enc_context` | `[B, L, K, 3H]` | `[node_i_enc ‖ e_ij ‖ 0]` — sequence-blind twin of decoder context |
-|  | `decoding_order` → `(backward_mask, forward_mask)` | `[B, L, K, 1]` each | partition K-neighbors into "decoded before self" vs "after self" |
-|  | per layer: `decoder_ctx` | `[B, L, K, 3H]` | `backward · [node_i_dec ‖ e_ij ‖ s_j]  +  forward · enc_context` |
-|  | per layer: node MPNN update on `(node_h, decoder_ctx)` | `[B, L, H]` | only nodes evolve; edges stay frozen at encoder output |
-| **Output** | `log_softmax(W_out(node_h))` | `[B, L, 21]` | `log p(s_i | s_{<i}, X)` at every position, computed in one pass |
+| Stage          | Tensor                                                 | Shape                    | Contents                                                                 |                                                     |
+| -------------- | ------------------------------------------------------ | ------------------------ | ------------------------------------------------------------------------ | --------------------------------------------------- |
+| **Inputs**     | `node_h_enc`                                           | `[B, L, H]`              | structure-only node embedding (encoder output)                           |                                                     |
+|                | `edge_h_enc`                                           | `[B, L, K, H]`           | structure-only edge embedding (encoder output)                           |                                                     |
+|                | `S`                                                    | `[B, L]` int             | sequence tokens — true labels at train time, running buffer at inference |                                                     |
+|                | `E_idx`, `mask`, `chain_M`, `chain_M_pos`              | `[B, L, K]`, `[B, L]`, … | K-NN graph + padding + designable-position masks                         |                                                     |
+|                | `decode_noise`                                         | `[B, L]`                 | per-position scalars used to draw the random permutation                 |                                                     |
+| **Transforms** | `seq_h = W_s(S)`                                       | `[B, L, H]`              | embed sequence (only place identity enters the model)                    |                                                     |
+|                | `seq_edge`                                             | `[B, L, K, 2H]`          | `[e_ij ‖ s_j]` — encoder edge tagged with neighbor identity              |                                                     |
+|                | `enc_context`                                          | `[B, L, K, 3H]`          | `[node_i_enc ‖ e_ij ‖ 0]` — sequence-blind twin of decoder context       |                                                     |
+|                | `decoding_order` → `(backward_mask, forward_mask)`     | `[B, L, K, 1]` each      | partition K-neighbors into "decoded before self" vs "after self"         |                                                     |
+|                | per layer: `decoder_ctx`                               | `[B, L, K, 3H]`          | `backward · [node_i_dec ‖ e_ij ‖ s_j]  +  forward · enc_context`         |                                                     |
+|                | per layer: node MPNN update on `(node_h, decoder_ctx)` | `[B, L, H]`              | only nodes evolve; edges stay frozen at encoder output                   |                                                     |
+| **Output**     | `log_softmax(W_out(node_h))`                           | `[B, L, 21]`             | `log p(s_i                                                               | s_{<i}, X)` at every position, computed in one pass |
 
 Mental model: the decoder is the encoder's node-update stage repeated 3×, fed
 an edge-slot context that has been *gated* by the autoregressive mask.
