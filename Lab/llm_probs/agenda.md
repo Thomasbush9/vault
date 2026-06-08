@@ -4,10 +4,13 @@ Current focus and the next 1–3 concrete things to do. Keep this short — when
 
 ## Now
 
-- [ ] **Tokenizer spec.** Vocab = `SUPPORT` integers (0..100) + structural tokens (`[DIST=UNIFORM]`, `[DIST=GAUSSIAN]`, `[DIST=BIMODAL]`, `[MU=...]`, `[SIGMA=...]`, `[MU1=...]`, …, `[W=...]`, `[START]`, sample separator, `[EOS]`). Open sub-question: how to encode float μ/σ — fixed-decimals + per-digit tokens? A learned numeric embedding head? Single-token-per-discretized-bucket? This decision unblocks both the model and the collate_fn.
-- [ ] **`collate_fn`** for the `DataLoader`. Pairs with the tokenizer decision — collation is the natural place to assemble `[DIST=...][params][START] s1 ... sN [EOS]`, tokenize, and batch into padded numpy arrays. Output: a dict of numpy arrays ready for `jnp.asarray`.
+- [ ] Run first experiments in the experiments.ipynb: we tested a small GPT model over only gaussian distributions: 
+	- [ ] it worked from overfitting a simple batch to fit and model distributions with different mu values. 
+- [ ] Downloaded Qwen2.5 3B: open source model to check first interpretability data-> move to 3.5 for further analysis + decide which models, toolkit you should use in this case. 
+- [ ] 
 
 ## Next
 
-- [ ] `eval.py`: TV / KL between empirical model output and the true PMF, plus a sample-independence metric (autocorrelation across positions, or χ² of consecutive-pair joint vs. product of marginals).
-- [ ] Tiny causal transformer in JAX/Flax. First sanity run on the uniform sampler (max-entropy baseline) before adding gaussian/bimodal.
+- [ ] Run samples + eval over LLMs 
+- [ ] Toolkit to save the rep + review of transformer lens for testing 
+- [ ]  What to do with out of distributions values? Currently the model works fairly well with the support, but how does it perform for OOD?
