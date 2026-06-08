@@ -17,6 +17,17 @@ won't fix (with rationale).
 
 ## HIGH — fix before sharing the image across users
 
+- [~] **H0. SIF baked CPU-only mmseqs2; colabfold_search --gpu 1 dies at
+  prefilter.** Discovered 2026-05-28 in stage-1 E2E baseline (MSA chunk_0).
+  `protforge-gpu.def:69` pulled `mmseqs-linux-avx2.tar.gz` (CPU/AVX2 build);
+  the colabfold call in `workflow/rules/msa.smk:104` forces `--gpu 1` and
+  mmseqs aborted with `MMseqs2 was compiled without CUDA support / Error:
+  Prefilter died`. GPU MSA is a hard requirement (decision 2026-05-28:
+  no CPU fallback for MSA — GPU is the whole point of using the cluster).
+  *Def file fixed 2026-05-28* — URL swapped to `mmseqs-linux-gpu.tar.gz`.
+  Rebuild required before the baseline E2E can pass. Closes when the
+  rebuilt SIF runs `containers/test/e2e.sh --launch` green end-to-end.
+
 - [x] **H1. Host env leaks into the container.**
   *Done 2026-05-16* — `container_cmd()` now emits `--cleanenv` +
   `--env TMPDIR=/tmp`; `smoke.sh` matches the production flags and adds
