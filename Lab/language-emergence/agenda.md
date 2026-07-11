@@ -4,12 +4,14 @@ Current focus and the next 1–3 concrete things to do. Keep this short — when
 
 ## Now
 
-- [ ] Basin experiments running (2026-07-11): baseline vs temperature-annealed vs
-      asymmetric-lr, 20 game seeds each, fixed vision. Fill in results in the
-      2026-07-11 log when done.
-- [ ] Striking early signal: baseline w/ fixed seed_1 vision started 5/5 — if the
-      arms all saturate, the follow-up is a vision-seed sweep (fix channel seed,
-      vary vision seed) to locate the lottery.
+- [x] Basin experiments (2026-07-11): baseline 80% / annealed 90% / asym_lr 30%,
+      fixed vision. Results in the 2026-07-11 log. Findings: (a) fixing vision is
+      the big lever (80% vs 40% full-pipeline); (b) annealing helps modestly;
+      (c) asymmetric lr hurts — accelerates the pooling collapse.
+- [ ] **Vision-seed sweep** (the follow-up the results point to): fix the channel
+      seed, vary the vision-pretraining seed, ~20 seeds. If success tracks the
+      vision seed, the lottery is mostly in vision init and we can screen vision
+      checkpoints cheaply before ever training the channel.
 
 ## Next
 
