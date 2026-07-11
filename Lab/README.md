@@ -8,6 +8,7 @@ Each subfolder is one project = one "lab member". Each project has both:
 
 - `protein-interp/` — mechanistic interpretability of cofolding diffusion models (Boltz-2, AF3, ESMFold).
 - `protforge/` — pipeline / tooling used by `protein-interp`.
+- `language-emergence/` — emergent communication in referential pointing games (EGG); currently characterizing the init lottery between working protocols and pooling collapse.
 
 ## Idea-stage
 
