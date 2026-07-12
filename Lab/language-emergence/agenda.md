@@ -4,26 +4,29 @@ Current focus and the next 1–3 concrete things to do. Keep this short — when
 
 ## Now
 
-- [x] Basin experiments (2026-07-11): baseline 80% / annealed 90% / asym_lr 30%,
-      fixed vision. Results in the 2026-07-11 log. Findings: (a) fixing vision is
-      the big lever (80% vs 40% full-pipeline); (b) annealing helps modestly;
-      (c) asymmetric lr hurts — accelerates the pooling collapse.
-- [ ] **Vision-seed sweep** (the follow-up the results point to): fix the channel
-      seed, vary the vision-pretraining seed, ~20 seeds. If success tracks the
-      vision seed, the lottery is mostly in vision init and we can screen vision
-      checkpoints cheaply before ever training the channel.
+- [ ] **Dual-sender: separate receiver query head per speaker** (top priority —
+      the proper "receiver knows the speaker" test). In `dual_sender_experiment.py`
+      the with_id token only *adds* an embedding to the message before ONE shared
+      query matrix; it did not rescue shape (0/10). Give the receiver an
+      independent query head per speaker id (two decoding subspaces) and re-run
+      with_id vs no_id, 10 seeds. Question: does shape survive when it isn't
+      crowded out of a shared query, or does colour still dominate the shared
+      vision/optimiser? Reuse the fixed-vision setup and the same metrics
+      (per-sender acc, distinct msgs, NMI, Jaccard).
+- [ ] Then curriculum / lr-balancing: let shape train alone a few epochs (or slow
+      colour's lr) so it gets a foothold before colour captures the receiver.
 
-- [x] Dual-sender (2026-07-12): shape- vs colour-specialist senders share one
-      receiver, with/without speaker-id token, 10 seeds each. Result: colour
-      monopolises the shared receiver, shape collapses 0/20 (vs 2/5 solo); the
-      id token does not help. See the 2026-07-12 log.
+## Recently done
+
+- 2026-07-11 basin experiments — annealed 90% > baseline 80% > asym_lr 30%
+  (fixed vision). See log.
+- 2026-07-12 dual-sender — colour monopolises a shared receiver, shape collapses
+  0/20, id token does not help. See log.
+- Parked: vision-seed sweep (fix channel seed, vary vision-pretrain seed) to
+  locate how much of the lottery lives in vision init.
 
 ## Next
 
-- [ ] **Dual-sender follow-ups** (the results point here): (a) separate receiver
-      query head per speaker — does shape survive with its own decoding subspace?
-      (b) curriculum / lr-balancing so shape gets a foothold before colour
-      captures the receiver. Current id-token only shifts a shared query.
 - [ ] Protocol analysis across successful runs: topographic similarity,
       per-position symbol/attribute specialization (seed 1 was color-first,
       seed 3 shape-first).
