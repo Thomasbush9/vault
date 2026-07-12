@@ -13,8 +13,17 @@ Current focus and the next 1–3 concrete things to do. Keep this short — when
       vision seed, the lottery is mostly in vision init and we can screen vision
       checkpoints cheaply before ever training the channel.
 
+- [x] Dual-sender (2026-07-12): shape- vs colour-specialist senders share one
+      receiver, with/without speaker-id token, 10 seeds each. Result: colour
+      monopolises the shared receiver, shape collapses 0/20 (vs 2/5 solo); the
+      id token does not help. See the 2026-07-12 log.
+
 ## Next
 
+- [ ] **Dual-sender follow-ups** (the results point here): (a) separate receiver
+      query head per speaker — does shape survive with its own decoding subspace?
+      (b) curriculum / lr-balancing so shape gets a foothold before colour
+      captures the receiver. Current id-token only shifts a shared query.
 - [ ] Protocol analysis across successful runs: topographic similarity,
       per-position symbol/attribute specialization (seed 1 was color-first,
       seed 3 shape-first).
