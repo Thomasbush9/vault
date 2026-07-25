@@ -4,6 +4,8 @@ Design: [[Stag Hunt Language Emergence - Experiment Design]]
 
 Implementation: [[Stag Hunt Language Emergence - Repository Setup]]
 
+Episode and agents: [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
+
 ## Setup:
 
 Env:

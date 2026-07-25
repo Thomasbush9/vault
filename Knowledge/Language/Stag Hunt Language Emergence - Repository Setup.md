@@ -4,6 +4,7 @@ Related:
 
 - [[Language Emergence with Stag Hunt Game]]
 - [[Stag Hunt Language Emergence - Experiment Design]]
+- [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
 
 ## Repository
 

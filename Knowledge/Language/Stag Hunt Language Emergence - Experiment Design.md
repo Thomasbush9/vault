@@ -4,6 +4,8 @@ Related: [[Language Emergence with Stag Hunt Game]]
 
 Implementation: [[Stag Hunt Language Emergence - Repository Setup]]
 
+Episode and agents: [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
+
 ## Assessment
 
 The Stag Hunt is a promising basis for studying language emergence because communication can play an instrumental role in choosing between a safe individual strategy and a risky but more rewarding cooperative strategy.
