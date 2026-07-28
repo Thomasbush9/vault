@@ -124,6 +124,29 @@ Entropy-conflict hypothesis **confirmed on the speaker side**: message entropy 0
 
 Also under discussion (user proposal, design phase): **free-goal game** — remove the designated target, let agents choose and negotiate the goal (communication = intention, not injected fact). Key design constraint identified: with symmetric full observability and equal-value stags, a Schelling convention kills the need for language — decision-relevant *private* information must remain (candidate designs: private positions / private per-stag value draws / private perception). Measurement shifts to MI(message; captured stag), intent-decoding probes, and the unchanged intervention contract. Code: `/n/holylfs06/LABS/bsabatini_lab/Everyone/tbush/stag-hunt-language-emergence`, artifacts: `/n/holylfs06/LABS/bsabatini_lab/Everyone/tbush/stag-hunt-files`. Detailed run-by-run record: `docs/experiments/2026-07-23-risk-curriculum.md` in the repo.
 
+## 2026-07-28 (later) — sig8/sig8L final: every seed's colour code freezes one merged pair
+
+All sig8 (6000 up) and sig8L (16,000 up) runs analyzed (500 eval episodes/condition). Runs + figure filed in `stag-hunt-files/2026-07-28_sig8-entropy/` (`sig8_summary.png`). Repo committed & pushed (`24193e9`).
+
+| run (16k) | eval joint: none / muted / random | accuracy: none / random | eval MI c (of 2) / r (of 1) | verdict |
+| --- | --- | --- | --- | --- |
+| sig8L s0 | **23% / 11% / 7%** | 39% / 26% | 1.47 / 1.00 | **causal** — best 8-stag result |
+| sig8L s1 | 12% / 6% / 6% | 26% / 22% | 1.48 / 1.00 | production without comprehension |
+| sig8L s2 | **18% / 5% / 6%** | 32% / 14% | 0.71 / 1.00 | **causal** despite weakest code |
+| sig8 me05 s1,s2 (6k) | 3–5%, flat | ≈ chance | **0.000** / 0.000 | dead channel — entropy conflict confirmed |
+
+Findings:
+
+1. **The missing bits are localized: every seed merges exactly one colour pair.** Codebooks (P(message|clue)): s0 = red→silence, green+amber→m3, blue→{m1,m2,m4} synonyms; s1 = green→silence, amber→{m1,m3}, red+blue→{m2,m4}; s2 = red/blue/green-amber distinguished at half rate with m1 as an uninformative filler in every colour. MI 1.47–1.48 is *exactly* the 2 − 0.5 signature of one merged equiprobable pair. Different pairs merge in different seeds → the 3-way collapse is structural, not stimulus-driven.
+2. **Why it freezes (hypothesis, now well-supported): each new lexical distinction faces its own bootstrapping problem.** Splitting the merged pair requires repurposing a synonym the listener currently decodes otherwise; every gradient step through that split passes through a miscoordination valley. The deadlock we broke at the channel level recurs per-distinction — scaffolding got the language started but each additional word must pay its own two-sided coordination cost.
+3. **The binary region bit always completes** — MI(region) hits 1.00 in 3/3 seeds, with s1 acquiring it between 6k→10k and s2 between **14k→16k** (codes still moving late; brute time genuinely does something).
+4. **Comprehension remains the slow step.** s1 carries a full 2.48-bit code yet uses it at chance (random control null) — the clearest dissociation of production from comprehension yet. s0's accuracy jumps 27%→40% in the last 2k updates (takeoff-like), captures 23%.
+5. Entropy 0.05 vs 0.01 is decisively settled (0.05 = dead channel 2/3; 0.01 = engaged 3/3). me0.01 is the standard going forward.
+
+**Launched:** array `stag-sig8x` (35779510): `bt40k` = 40,000 updates ×3 seeds (does the per-distinction grind finish?) and `b128` = batch 128 × 16,000 updates ×3 (equal episode budget — is reward *density* the binding constraint?). Both user-approved.
+
+**Direction discussion (user):** doubts remain about the MI bias as the long-term approach. Three user proposals assessed: (a) **private goal representation + navigation pre-training** (phase A: full goal visible, learn goal-conditioned navigation without communication; phase B: remove direct goal input, communication must write into the goal slot) — strongest idea, attacks the measured bottleneck (listener currently learns navigation *and* decoding simultaneously), and is bias-free in the sense that matters (no loss touches the message distribution; the scaffold is a curriculum). Next experiment candidate. (b) **Multi-round episodes / cumulative reward** (respawn stags after capture) — densifies reward and forces reusable codes over "follow-me" conventions; deferred until `b128` answers whether density matters. (c) **Bias-free emergence as the target** — agreed; cheap complement = bias-anneal from a converged sig checkpoint (is the communicative equilibrium self-sustaining without the bias?), still queued.
+
 Related: [[Language Emergence with Stag Hunt Game]], [[Stag Hunt Language Emergence - Experiment Design]], [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
 
 ---
