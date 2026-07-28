@@ -147,6 +147,44 @@ Findings:
 
 **Direction discussion (user):** doubts remain about the MI bias as the long-term approach. Three user proposals assessed: (a) **private goal representation + navigation pre-training** (phase A: full goal visible, learn goal-conditioned navigation without communication; phase B: remove direct goal input, communication must write into the goal slot) — strongest idea, attacks the measured bottleneck (listener currently learns navigation *and* decoding simultaneously), and is bias-free in the sense that matters (no loss touches the message distribution; the scaffold is a curriculum). Next experiment candidate. (b) **Multi-round episodes / cumulative reward** (respawn stags after capture) — densifies reward and forces reusable codes over "follow-me" conventions; deferred until `b128` answers whether density matters. (c) **Bias-free emergence as the target** — agreed; cheap complement = bias-anneal from a converged sig checkpoint (is the communicative equilibrium self-sustaining without the bias?), still queued.
 
+## 2026-07-28 (evening) — Density completes the language; the bias is a discovery scaffold only
+
+Two arrays, two answers. Runs + figure in `stag-hunt-files/2026-07-28_density-and-anneal/` (`density_anneal_summary.png`). All runs decoupled, randomized clues, blind, 8 stags, signaling 0.1, message-entropy 0.01 unless noted.
+
+**Array `stag-sig8x` (35779510): brute time (bt40k = 40,000 updates × batch 64) vs reward density (b128 = 16,000 × batch 128), equal episode budgets (~2.6M vs ~2.0M episodes).**
+
+| run | eval joint: none / muted / random | accuracy: none / random | eval MI c (of 2) / r (of 1) | verdict |
+| --- | --- | --- | --- | --- |
+| b128 s0 | **86% / 6% / 5%** | 93% / 29% | 1.93 / 0.98 | **causal, near-ceiling code** |
+| b128 s1 | **87% / 14% / 5%** | 91% / 35% | 1.93 / 0.99 | same |
+| b128 s2 | **78% / 8% / 6%** | 88% / 33% | 1.63 / 0.99 | causal, code still completing |
+| bt40k s0 | 42% / 13% / 9% | 55% / 32% | 1.44 / 0.99 | causal, pair still merged at 40k |
+| bt40k s1 | 51% / 13% / 7% | 68% / 27% | 1.53 / 1.00 | same |
+| bt40k s2 | 26% / 4% / 7% | 35% / 25% | 0.72 / 1.00 | causal, half-code never grew |
+
+Findings:
+
+1. **Reward density, not time, breaks the per-word deadlock.** With fewer total episodes, batch 128 gets 3/3 seeds past the merged-pair plateau; batch 64 gets 0/3 even at 40k updates. The mechanism is visible in the MI traces: discrete upward splits (b128 s0 at ~update 11k: 2.5→2.9; s1 at ~3k; s2 stepwise) — the frozen colour pair actually splits mid-training once the listener gradient is low-variance enough to make the split profitable. Halving gradient variance per update is worth more than doubling updates.
+2. **b128 s0 codebook = a genuine 4-colour naming system**: amber→silence, green→m1, blue→m4, red→{m2,m3}. First full referential vocabulary in the project.
+3. bt40k confirms time alone half-works (all causal, captures 26–51%) — the grind is real but the merged pair is an equilibrium that batch 64 noise cannot escape.
+4. Practical: batch 128 is the default going forward. This also upgrades the multi-round/cumulative-reward idea from speculative to mechanism-backed (it densifies capture events *within* the trajectory).
+
+**Array `stag-anneal` (35881719): bias-anneal self-sustainability.** New trainer flag `--init-checkpoint` (warm-starts actors+critics+optimizer; repo `02fab23`). Fine-tune 4,000 updates × batch 128 from b128 s0/s1 checkpoints: `anneal` = signaling coef **0**, `cont` = kept 0.1 (drift control).
+
+| run | eval joint: none / muted / random | eval MI c / r | training trend |
+| --- | --- | --- | --- |
+| anneal s0 | **88% / 6% / 9%** | 1.89 / 0.97 | flat at ~88% |
+| anneal s1 | **92% / 14% / 5%** | 1.73 / 0.98 | **rising** (87→93% in-training) |
+| cont s0 | 88% / 7% / 8% | 1.89 / 0.96 | flat |
+| cont s1 | 95% / 15% / 5% | 1.99 / 1.00 | rising (→95.5%) |
+
+Findings:
+
+5. **The language is self-sustaining without the bias.** Zero decay in ~512k bias-free episodes; anneal trajectories are indistinguishable from bias-kept controls; codes remain causal (random control → 5–9%). The honest claim is now complete: *the signaling bias is needed to discover the language; the communicative equilibrium is a stable — and still improving — fixed point of the unbiased game.* This substantially answers the "MI is bought" concern: bought once, self-financing thereafter.
+6. Subtle and interesting: anneal s1's colour MI compressed 1.93→1.73 while captures *rose* — task reward maintains reward-bearing distinctions but lets redundant informativeness go. Under pure task pressure the code is selected for sufficiency, not informativeness per se.
+
+**Open next (discussed, not launched):** pre-training curriculum for bias-free *discovery* (phase A: goal directly observed, learn navigation; phase B: remove goal input, communication fills the slot) — now the main frontier since maintenance is solved; multi-round episodes (mechanism-backed by the density result); free-goal design still pending spec approval.
+
 Related: [[Language Emergence with Stag Hunt Game]], [[Stag Hunt Language Emergence - Experiment Design]], [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
 
 ---
