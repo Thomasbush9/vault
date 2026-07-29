@@ -220,6 +220,38 @@ Unverified details flagged by the search: the exact origin of the term "ontogene
 
 **Design sketch if we go ritualization next:** remove the dedicated symbol channel entirely; make an instrumental action (a move, or an orientation/gaze visible only within a radius) the only observable, and let a *cheap* stylised variant of it become available so the pressure is toward compression rather than invention. Metrics would follow the ethological hallmarks: stereotypy (entropy collapse of the action's form), emancipation (does it fire outside its original instrumental context?), and iconicity (does the ritualized form retain a trace of the movement it came from — e.g. still points stag-ward?).
 
+## 2026-07-29 — Bias-free 2×2: a comprehensive null, and a diagnosis that reframes the problem
+
+All 12 runs completed overnight (array 35933257, ~4 h at 2 runs/GPU) and the dependent analysis array (35933748) produced every verdict. Runs + figure filed in `stag-hunt-files/2026-07-29_biasfree-2x2/` (`biasfree_2x2_summary.png`).
+
+| cell | eval MI c / r (of 2 / 1) | captures: none / muted / random | accuracy | verdict |
+| --- | --- | --- | --- | --- |
+| blind + untied (control) | 0.00–0.03 / 0.05–0.26 | 11–32% / 6–12% / 7–9% | 22–43% | no code |
+| blind + tied | 0.00–0.01 / 0.00–0.01 | 12–36% / 12–36% / 12–37% | 25–62% | no code (best cell = pure convention) |
+| co-observation + untied | 0.00 / 0.05–0.11 | 18–22% / 11–14% / 14–16% | 20–24% | no code |
+| co-observation + tied | 0.00 / 0.00–0.01 | 14–26% / 14–21% / 14–22% | 26–27% | no code |
+
+**Neither lever worked, alone or together.** MI never leaves zero in 16,000 updates. The strongest run (blind+tied s2: 36% captures, 62% targeting) is a rendezvous convention with a completely dead channel — the loophole we already know.
+
+Two follow-up probes were needed because a few runs showed captures dropping under the random-message intervention *despite* MI ≈ 0 (e.g. blind+untied s1: 32% → 8.6%), which would have been a striking "causal but non-referential channel" result:
+
+1. `probe_nonreferential.py` — MI between the emitted symbol and every plausible referent: own clue, speaker quadrant/x-half/y-half, episode phase, partner position. **All ≤ 0.044 bits.** The messages are not about anything, so the intervention drop is the input-distribution-shift artifact again (4th sighting; random symbols perturb a GRU trained on its own babble statistics). Methodological reinforcement: an intervention drop is only evidence of communication when paired with non-zero MI.
+2. `probe_coobs.py` — capture and targeting split by how many agents could see the full target. **This is the real finding: targeting accuracy is flat at 16–31% whether NEITHER, ONE, or BOTH agents are fully informed** (chance 12.5%; a fully-informed agent could hit 100%). Captures likewise flat (~18–29%).
+
+**Diagnosis — the blocker is upstream of communication.** Agents never learn to use target information they *already possess*. Two compounding reasons, both structural:
+
+- **No individual gradient for using private information.** In the presence game a lone agent standing on the correct stag earns nothing; only joint presence pays. So "walk to the target I can see" has no reward signal of its own.
+- **Co-observation is private, so it never becomes common knowledge.** An agent that sees the full target has no way to know whether its partner also sees it. Acting on private knowledge is a gamble that pays only if the partner happens to be informed *and* acts — expected value too low to bootstrap. This is why the design failed where the signaling bias succeeded: an informative *message* is inherently shared, creating approximate common knowledge; co-observation is not.
+
+This retrospectively explains the whole bias story. The signaling bias never "bought comprehension" — it manufactured the one thing this environment cannot produce on its own: information that both agents know they share.
+
+**Recommended next (not launched, needs sign-off):**
+
+1. **Shared fog (env, one-line change):** draw co-observation *per episode*, not per agent — episodes are either `clear` (both agents see both attributes) or `foggy` (each holds one clue). Visibility becomes common knowledge, so clear episodes give goal-conditioned navigation a real gradient, and foggy episodes then require communication with comprehension already in place. Still stationary, single-phase, ecologically honest (weather/lighting affects both foragers).
+2. **Solo utility for the proto-signal / partial reward** — give an individual agent a small payoff for reaching the correct stag alone, so using one's own information pays before coordination does. This is precisely Inoue & Wakabayashi's (2025) finding that the sender needs *direct utility* to bootstrap under reward delay, and it converges with the ritualization programme.
+
+Both are cheap; (1) is the single highest-value next run and directly tests the common-knowledge diagnosis.
+
 Related: [[Language Emergence with Stag Hunt Game]], [[Stag Hunt Language Emergence - Experiment Design]], [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
 
 ---
