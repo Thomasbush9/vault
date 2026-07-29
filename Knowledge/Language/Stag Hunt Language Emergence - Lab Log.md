@@ -258,6 +258,29 @@ Code (repo, 44 tests): `EnvConfig.co_observation_mode="shared"` draws visibility
 
 Predictions worth recording before the data lands: (i) clear episodes should show targeting accuracy climb far above the 16–31% ceiling we just measured — if it does not, the common-knowledge diagnosis is wrong and the problem is plain credit assignment; (ii) `solo05` should raise targeting without raising *joint* captures much (individual competence, no coordination); (iii) only the combined arms can produce language, and it should appear in the foggy episodes first, with comprehension transferred from the clear ones. A null in `fog50solo` would mean the ecology route needs the ritualization redesign (non-dedicated channel) rather than another visibility knob.
 
+## 2026-07-29 (evening) — FIRST BIAS-FREE CAUSAL LANGUAGE: pay a lone agent to use what it knows
+
+Array `stag-ck` 36020270, all 12 runs + dependent analysis complete. Runs, figure and swap numbers in `stag-hunt-files/2026-07-29_common-knowledge/` (`commonknowledge_summary.png`, `swap_test_results.json`).
+
+| arm | captures (3 seeds) | targeting | swap test: content dependence | verdict |
+| --- | --- | --- | --- | --- |
+| **`solo05`** (solo reward 0.5, blind) | **55 / 46 / 85%** | 54 / 57 / 90% | **80 / 74 / 84%** | **causal bias-free language, 3/3** |
+| `fog50solo` | 46 / 58 / 36% | 56 / 72 / 44% | 29 / 39 / 43% | partial code, weaker |
+| `fog25solo` | 34 / 31 / 31% | 37 / 38 / 39% | 60 / 59 / 38% | partial code |
+| `fog50` (shared fog only) | 14 / 20 / 18% | 24 / 29 / 23% | 19 / 30 / 30% | near-null |
+
+**1. The missing ingredient was the individual gradient, not common knowledge.** A 0.5 payoff for standing *alone* on the correct stag (vs 4.0 for a joint capture, once per episode) takes the game from yesterday's 20% ceiling to 43–87% captures with no auxiliary loss anywhere. My primary hypothesis — that private co-observation failed because it was not common knowledge — is **falsified**: shared fog alone barely moves anything, and its both-informed targeting is 24.7% vs 22.0% foggy, i.e. agents *still* ignore a target they can both see. What they needed was a reason to act on information at all.
+
+**2. New decisive probe, and it retires mute/random.** `scripts/probe_shuffle.py` replays a *real* message stream from a different episode at the same timestep: the listener hears exactly the statistics it was trained on, but the content refers to another episode's target. This controls the input-distribution-shift artifact that has fooled us four times. `solo05` collapses 87%→14%, 54%→11%, 43%→11% — **74–84% of captures depend on message content**. That is the cleanest causal evidence of communication the project has produced, and it required no bias of any kind.
+
+**3. Shared fog actively backfires when combined with the solo reward** (content dependence 37% mean vs 80% for solo alone; captures also lower). Clear episodes let agents solve the task without talking, so the pressure to develop a code is diluted. Free information is the enemy of language — a result that is obvious in hindsight and worth stating in any write-up.
+
+**4. The code is low-bandwidth but load-bearing, which reframes the earlier MI numbers.** Per-timestep MI (`scripts/probe_timing.py`, added because pooled MI dilutes a briefly-used protocol by the horizon): region peaks at **0.68 of 1 bit on the very first step**, colour at 0.47 of 2 around t=5–6; pooled values are only 0.2–0.3. Codebook at the informative step is systematic (amber→m1 0.62, red/blue→m3, green spread). Crucially, agents only need to transmit **the complement of what the partner already holds** — so ~1–1.5 bits is task-sufficient, and the 2.9/3 bits the signaling-bias runs reached was over-specification driven by the MI objective rather than by the task.
+
+**Interpretation.** The deadlock was never purely about the speaker's gradient. In a game that pays only for joint presence, *no agent has any reason to act on private information*, so there is nothing for a listener to learn to decode and nothing for a speaker's symbol to influence. Giving individual competence a small payoff creates the first link in the chain (use what you know), and communication then emerges to complete it (learn what your partner knows). This is exactly Inoue & Wakabayashi's (2025) prediction that the sender needs direct utility to bootstrap under reward delay — now confirmed in our setting, and it strengthens the case for the ritualization programme, where signals grow out of instrumentally useful behaviour.
+
+**Open next (not launched):** (a) anneal the solo reward to zero and re-run the swap test — is this language self-sustaining like the bias-scaffolded one was? (b) push `solo05` further (40k updates or vocab/attribute scaling) to see whether the code completes to the full complement; (c) ritualization redesign — remove the dedicated channel so signals must piggyback on movement, now clearly motivated; (d) hares/phase-2 risk, still untouched.
+
 Related: [[Language Emergence with Stag Hunt Game]], [[Stag Hunt Language Emergence - Experiment Design]], [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
 
 ---
