@@ -185,6 +185,37 @@ Findings:
 
 **Open next (discussed, not launched):** pre-training curriculum for bias-free *discovery* (phase A: goal directly observed, learn navigation; phase B: remove goal input, communication fills the slot) — now the main frontier since maintenance is solved; multi-round episodes (mechanism-backed by the density result); free-goal design still pending spec approval.
 
+## 2026-07-28 (night) — Bias-free 2×2 launched; pretraining rejected on naturalism grounds
+
+**Design decision (user):** drop the pretraining curriculum as a headline experiment. The objection is decisive — a two-phase curriculum is the *same epistemic move* as the MI bias, just relocated from the loss function into the training schedule. Both are experimenter-staged scaffolds, and neither supports the claim we actually want ("language emerges from the ecology of the game"). The lever should be the **environment and the architecture**, designed so that the gradient path for communication exists naturally and stationarily.
+
+**Launched: array `stag-biasfree` (35929172), 12 runs, NO auxiliary losses anywhere** (signaling 0, listening 0). 8 stags, decoupled, randomized clues, message-entropy 0.01, **batch 128** (today's density result means every earlier no-bias arm was confounded by gradient starvation at batch 64 — this is the fair retest), 16,000 updates, 3 seeds per cell:
+
+| factor | level A | level B |
+| --- | --- | --- |
+| environment | `flat` — blind game as before | `coobs` — `co_observation_prob=0.5`: per episode each agent independently sees BOTH attributes with p=0.5 |
+| architecture | `untied` — separate message head and input encoding | `tied` — one symbol-embedding matrix E for producing and hearing (`logits = speak_proj(h) @ E.T`; heard symbols routed through E) |
+
+Rationale. **Stochastic observability** is the pretraining idea converted from a curriculum *in time* into a mixture *in the environment*: single-phase, stationary, ecologically honest (perception is sometimes sufficient, sometimes not), and it supplies exactly the missing speaker gradient — in a co-observed episode the listener can ground the partner's symbols against its own view instead of against rare capture reward; once partial decoding exists, speakers earn credit in the blind episodes where communication actually pays. **Tied embeddings** are the motor-theory-of-perception move: learning to *say* a symbol informatively also moves the representation used to *hear* it, so production and comprehension stop being independent problems and the two-sided coordination problem partly collapses into within-agent self-consistency plus overlapping priors between the two agents. Code: `EnvConfig.co_observation_prob`, `RecurrentActor(tied_symbols=True)`, flags `--co-observation-prob/--tied-symbols`, 40 tests passing, repo `8acaf7a`.
+
+Verdicts will use the unchanged intervention contract (random-message control decisive). Multi-round/cumulative-reward episodes remain queued as a third, compatible pressure (in-episode density) if the 2×2 alone doesn't ignite.
+
+### Ritualization — reading list (user request)
+
+The most naturalistic origin story for signals: behaviors that originally had a direct instrumental function get *observed* by a partner, then conventionalize/stylize into cheap signals. Held in reserve behind the 2×2 because it needs a bigger env redesign, but it is the direction with the best biological warrant.
+
+- **Top pick — Scott-Phillips, Kirby & Ritchie (2009), "Signalling signalhood and the emergence of communication," *Cognition* 113(2):226–233, doi:10.1016/j.cognition.2009.08.009.** Isolates precisely our blocker as the general "signalhood" problem: how can a behaviour come to be recognised *as* a signal with no pre-existing convention? Their Embodied Communication Game (humans, no dedicated channel) shows signalhood is bootstrapped through common ground and iterative mutual adjustment — i.e. it is a negotiated state, not a channel property given in advance.
+- **Top computational pick — Quinn (2001), "Evolving Communication without Dedicated Communication Channels," ECAL 2001, LNCS 2159:357–366, doi:10.1007/3-540-44811-X_38.** Evolved robots with *no dedicated signalling channel* — signals had to pass through the same effectors used for the task. Functional non-communicative behaviour evolved first and became the substrate communication was built on. The direct precedent for making our channel non-dedicated (signals piggybacking on movement).
+- **Inoue & Wakabayashi (2025), "Communication emergence under reward delay," *Artificial Life and Robotics*, doi:10.1007/s10015-025-01091-5.** MARL formalisation of our exact problem: under reward delay the sender's signalling action needs *direct utility of its own* to bootstrap what they call the ritualization process; stabilising the sender matters more than the receiver. Maps one-to-one onto giving the proto-signal an instrumental payoff.
+- **Halina, Rossano & Tomasello (2013), "The ontogenetic ritualization of bonobo gestures," *Animal Cognition* 16(4):653–666, doi:10.1007/s10071-013-0601-7.** The clearest empirical mechanism, caught in the act: actor performs instrumental act A → partner starts responding to the *early/incomplete* portion of A → actor truncates A into a stylised cue. Directly implementable as a dynamic (anticipation + efficiency pressure → compression).
+- Classics for vocabulary and metrics: **Tinbergen (1952), "'Derived' Activities," *Quarterly Review of Biology* 27(1):1–32, doi:10.1086/398642** (displacement activities becoming signals) and the **Royal Society symposium, *Phil. Trans. R. Soc. B* 251(772) (1966)**, incl. **Lorenz, "Evolution of ritualization…," doi:10.1098/rstb.1966.0011** — the hallmarks (repetition, exaggeration, stereotypy, *emancipation* from the original context) are directly operationalisable as measurable properties of an emergent signal.
+- Formal backbone: **Skyrms, *Signals: Evolution, Learning, and Information* (OUP 2010)** — how a symbol repertoire can grow from nothing under simple reinforcement dynamics.
+- Cautions worth reading before claiming ritualization: **Byrne et al. (2017), *Animal Cognition* 20:755–769, doi:10.1007/s10071-017-1096-4** (many ape gestures may be innate, not ritualized) and **Macmillan-Scott & Musolesi (2025), *PLOS Comp Biol*, doi:10.1371/journal.pcbi.1013302** (MARL agents often reach cooperation *without* signalling — exactly our movement-only convention loophole).
+
+Unverified details flagged by the search: the exact origin of the term "ontogenetic ritualization" (probably Tomasello's 1990s work following Tomasello, Gust & Frost 1989) and which year Huxley coined "ritualization" (1914/1923/1966 all reported).
+
+**Design sketch if we go ritualization next:** remove the dedicated symbol channel entirely; make an instrumental action (a move, or an orientation/gaze visible only within a radius) the only observable, and let a *cheap* stylised variant of it become available so the pressure is toward compression rather than invention. Metrics would follow the ethological hallmarks: stereotypy (entropy collapse of the action's form), emancipation (does it fire outside its original instrumental context?), and iconicity (does the ritualized form retain a trace of the movement it came from — e.g. still points stag-ward?).
+
 Related: [[Language Emergence with Stag Hunt Game]], [[Stag Hunt Language Emergence - Experiment Design]], [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
 
 ---
