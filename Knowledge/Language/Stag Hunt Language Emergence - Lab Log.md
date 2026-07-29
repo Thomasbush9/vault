@@ -189,7 +189,7 @@ Findings:
 
 **Design decision (user):** drop the pretraining curriculum as a headline experiment. The objection is decisive — a two-phase curriculum is the *same epistemic move* as the MI bias, just relocated from the loss function into the training schedule. Both are experimenter-staged scaffolds, and neither supports the claim we actually want ("language emerges from the ecology of the game"). The lever should be the **environment and the architecture**, designed so that the gradient path for communication exists naturally and stationarily.
 
-**Launched: array `stag-biasfree` (35929172), 12 runs, NO auxiliary losses anywhere** (signaling 0, listening 0). 8 stags, decoupled, randomized clues, message-entropy 0.01, **batch 128** (today's density result means every earlier no-bias arm was confounded by gradient starvation at batch 64 — this is the fair retest), 16,000 updates, 3 seeds per cell:
+**Launched: array `stag-biasfree` (35931562), 12 runs, NO auxiliary losses anywhere** (signaling 0, listening 0). 8 stags, decoupled, randomized clues, message-entropy 0.01, **batch 128** (today's density result means every earlier no-bias arm was confounded by gradient starvation at batch 64 — this is the fair retest), 16,000 updates, 3 seeds per cell:
 
 | factor | level A | level B |
 | --- | --- | --- |
@@ -197,6 +197,10 @@ Findings:
 | architecture | `untied` — separate message head and input encoding | `tied` — one symbol-embedding matrix E for producing and hearing (`logits = speak_proj(h) @ E.T`; heard symbols routed through E) |
 
 Rationale. **Stochastic observability** is the pretraining idea converted from a curriculum *in time* into a mixture *in the environment*: single-phase, stationary, ecologically honest (perception is sometimes sufficient, sometimes not), and it supplies exactly the missing speaker gradient — in a co-observed episode the listener can ground the partner's symbols against its own view instead of against rare capture reward; once partial decoding exists, speakers earn credit in the blind episodes where communication actually pays. **Tied embeddings** are the motor-theory-of-perception move: learning to *say* a symbol informatively also moves the representation used to *hear* it, so production and comprehension stop being independent problems and the two-sided coordination problem partly collapses into within-agent self-consistency plus overlapping priors between the two agents. Code: `EnvConfig.co_observation_prob`, `RecurrentActor(tied_symbols=True)`, flags `--co-observation-prob/--tied-symbols`, 40 tests passing, repo `8acaf7a`.
+
+Both agents take both roles throughout (`--randomize-clues`): verified at p=0.5 co-observation, each agent gets ~25% colour-only, ~25% region-only, ~50% both — symmetric, so neither network can specialise into a fixed speaker or listener.
+
+**Resource note (measured, worth reusing):** one training run uses ~1 CPU core, ~900 MiB of GPU memory and **2% of an H100** — the trainer is CPU/latency-bound, so a run-per-GPU allocation wastes ~50× the GPU (and 7 of 8 allocated cores). The array now packs **6 concurrent runs per GPU** (one task per env condition, `OMP_NUM_THREADS=1`), so the whole 2×2 occupies 2 GPUs instead of 12 at ~15% utilisation, with no wall-clock penalty since each run still owns a core. Default this packing for future sweeps.
 
 Verdicts will use the unchanged intervention contract (random-message control decisive). Multi-round/cumulative-reward episodes remain queued as a third, compatible pressure (in-episode density) if the 2×2 alone doesn't ignite.
 
