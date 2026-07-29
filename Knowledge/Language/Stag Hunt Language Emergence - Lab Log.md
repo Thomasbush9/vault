@@ -245,12 +245,18 @@ Two follow-up probes were needed because a few runs showed captures dropping und
 
 This retrospectively explains the whole bias story. The signaling bias never "bought comprehension" — it manufactured the one thing this environment cannot produce on its own: information that both agents know they share.
 
-**Recommended next (not launched, needs sign-off):**
+**Next experiment — LAUNCHED (user approved), array `stag-ck` 36020270 + dependent analysis 36020271.** Still zero auxiliary losses; 8 stags, decoupled, randomized clues, untied, batch 128, 16,000 updates, 3 seeds per arm, 2 runs/GPU (~4 h).
 
-1. **Shared fog (env, one-line change):** draw co-observation *per episode*, not per agent — episodes are either `clear` (both agents see both attributes) or `foggy` (each holds one clue). Visibility becomes common knowledge, so clear episodes give goal-conditioned navigation a real gradient, and foggy episodes then require communication with comprehension already in place. Still stationary, single-phase, ecologically honest (weather/lighting affects both foragers).
-2. **Solo utility for the proto-signal / partial reward** — give an individual agent a small payoff for reaching the correct stag alone, so using one's own information pays before coordination does. This is precisely Inoue & Wakabayashi's (2025) finding that the sender needs *direct utility* to bootstrap under reward delay, and it converges with the ritualization programme.
+| arm | `co_observation` | `solo_presence_reward` | tests |
+| --- | --- | --- | --- |
+| `fog50` | 0.5, **mode=shared** | 0 | does common knowledge alone fix it? |
+| `solo05` | none (blind) | 0.5 | does an individual gradient alone fix it? |
+| `fog50solo` | 0.5, shared | 0.5 | both — the predicted winner |
+| `fog25solo` | 0.25, shared | 0.5 | robustness: only a quarter of episodes clear |
 
-Both are cheap; (1) is the single highest-value next run and directly tests the common-knowledge diagnosis.
+Code (repo, 44 tests): `EnvConfig.co_observation_mode="shared"` draws visibility **once per episode** ("clear" vs "foggy" weather) so both agents always share the condition — visibility becomes common knowledge, and an agent that sees the target knows its partner does too. `EnvConfig.solo_presence_reward` pays a lone agent 0.5 (vs 4.0 joint) once per episode for standing on the correct stag, so *using* your own information pays before coordination does; validated to stay below `stag_reward/2` so solo scouting cannot displace cooperation. Role symmetry re-verified under the new mode (each agent ~24% colour-only, ~26% region-only, ~50% both; both agents always share the fog condition).
+
+Predictions worth recording before the data lands: (i) clear episodes should show targeting accuracy climb far above the 16–31% ceiling we just measured — if it does not, the common-knowledge diagnosis is wrong and the problem is plain credit assignment; (ii) `solo05` should raise targeting without raising *joint* captures much (individual competence, no coordination); (iii) only the combined arms can produce language, and it should appear in the foggy episodes first, with comprehension transferred from the clear ones. A null in `fog50solo` would mean the ecology route needs the ritualization redesign (non-dedicated channel) rather than another visibility knob.
 
 Related: [[Language Emergence with Stag Hunt Game]], [[Stag Hunt Language Emergence - Experiment Design]], [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
 
