@@ -1,5 +1,7 @@
 Running lab log for the stag-hunt language-emergence project. Newest entries on top.
 
+For the compressed picture — everything tried, what is established, and the option space for next steps — see [[Stag Hunt Language Emergence - Summary and Next Steps]].
+
 ---
 
 ## 2026-07-27 — First genuine symbolic communication (lever sweep results)
