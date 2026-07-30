@@ -150,6 +150,50 @@ next**, with C running in the background because it is nearly free. A tells us
 whether this environment can produce structure at all; B is the more original
 scientific story and the one that fits the naturalistic framing.
 
+# 6. Literature: mechanisms we have not tried (reviewed 2026-07-30)
+
+Three targeted reviews, all citations verified.
+
+## 6.1 Our deadlock is a *known algorithmic* failure, not only a task-design failure
+
+- **Havrylov & Titov (2017), "Emergence of Language with Multi-agent Games: Learning to Communicate with Sequences of Symbols," NeurIPS 2017.** Head-to-head comparison of REINFORCE versus straight-through Gumbel-Softmax for training a discrete channel: the relaxation converges *much* faster and yields more effective protocols. This is our failure mode in a controlled experiment.
+- **Bogin, Geva & Berant (2018), "Emergence of Communication in an Interactive World with Consistent Speakers," NeurIPS EmeCom workshop, arXiv:1809.00549.** States plainly that "training using policy gradient fails" in a harder interactive environment, and diagnoses *speaker inconsistency* — an unstable message→meaning map gives the listener no stable target, so the credit reaching the speaker is noise.
+- **Eccles et al. (2019), NeurIPS** — the source of our biases — motivates them as a fix for a **joint exploration problem** in temporally-extended RL. Note for framing: the paper makes **no biological claim** whatsoever.
+
+Reading: much of what we attributed to the world may be attributable to training a discrete channel with RL-only credit assignment.
+
+## 6.2 The fix that fits our architecture exactly
+
+- **Vanneste et al., "Learning to Communicate Using Counterfactual Reasoning" (MACC), arXiv:2006.07200; journal version in *Neural Computing and Applications* (2024), doi:10.1007/s00521-024-10598-0.** Applies a **COMA-style counterfactual baseline specifically to MESSAGE actions**: the speaker's advantage for the message it sent is computed by marginalising over the messages it could have sent, holding the partner fixed. Builds on **Foerster et al. (2018), COMA, AAAI**.
+- Why it fits: we already have centralised critics (CTDE) and a tiny vocabulary, so the marginalisation is cheap. It is a pure credit-assignment change — **no information-theoretic objective, no gradients crossing between agents**.
+- Alternatives: **DIAL** (Foerster et al. 2016, NeurIPS) and **straight-through Gumbel-Softmax** (Jang et al. 2017; Maddison et al. 2017) give an exact low-variance gradient but require the listener's loss to backpropagate into the speaker — training-time gradient sharing between agents, which is biologically implausible and a bigger conceptual concession than a counterfactual baseline. **Jaques et al. (2019), "Social Influence as Intrinsic Motivation," ICML** rewards *causally influencing* the partner rather than being statistically informative — closer to what we want than MI, but needs a model of the partner's policy.
+
+## 6.3 What reliably makes a channel necessary
+
+The property common to every robust success: **strict, movement-irresolvable information asymmetry** — no sequence of actions lets an agent perceive what the partner holds. Archetype: **Hanabi** (Bard et al. 2019, *Artificial Intelligence*) — you can see everyone's hand but your own. Our design already has this, which is good.
+
+What we may be missing is that a **50/50 split under-constrains necessity**: each agent's half already biases it toward a subset, so partial, non-communicative solutions exist (our rendezvous conventions). Stronger forcing structures from the literature:
+- **Guide/follower**: one agent has the whole target but cannot act, the other can act but knows nothing. See the MADDPG cooperative-communication task (**Lowe et al. 2017, NeurIPS**), **Mul, Bouchacourt & Bruni (2019), arXiv:1908.05135**, and **CoMON (Patel et al., ICCV 2021, arXiv:2110.05769)**.
+- **Temporal-exclusivity bottleneck**: the switch riddle in Foerster et al. (2016) — information is available to only one agent at a time and must be *persisted* through the channel.
+- **Resnick et al. (2020), "Capacity, Bandwidth, and Compositionality in Emergent Language Learning," AAMAS** — there is a band of capacity/bandwidth that induces structure; too much lets agents cheat. Our vocabulary (4) versus attribute cardinality (4) is exactly the over-provisioned regime.
+
+Also: **Cao et al. (2018), "Emergent Communication through Negotiation," ICLR** — prosocial (shared-reward) agents use an ungrounded channel, self-interested ones do not. And **Kottur et al. (2017), EMNLP** (best short paper) — "natural language does not emerge naturally"; unconstrained agents find effective but degenerate codes.
+
+## 6.4 Is the MI bias an evolutionary mechanism? (direct answer: partly)
+
+The **architecture** — fixed production, learned comprehension — is well grounded:
+- **Byrne et al. (2017), *Animal Cognition* 20:755–769** — great-ape gesture *forms* look largely innate, while their deployment is flexible.
+- **Guilford & Dawkins (1991), "Receiver psychology and the evolution of animal signals," *Animal Behaviour* 42:1–14** — receiver psychology is a separate selective landscape from signal production.
+- Fixed action patterns (Lorenz/Tinbergen); **Skyrms (2010)** — signal meaning is conventional and *arbitrary* by default.
+
+But the **mechanism** is not: nothing in biology optimises mutual information online. Evolution fixes an **arbitrary** display over generations; plasticity sits on the receiver side. So the honest position is that our MI loss models an innate *propensity to signal informatively*, which is close to assuming what we want to explain — and Eccles et al. never claimed otherwise.
+
+**Genuine gap found:** **Evtimova et al. (2018), ICLR, arXiv:1705.10369** froze a *randomly initialised* sender and found performance "significantly lags" joint training — but a frozen random network is not the same as a **fixed, injective, arbitrary code**. Nobody appears to have run the clean condition: hardwire a systematic but arbitrary clue→symbol bijection, never train it, and learn only comprehension. That is cheap for us and would let us claim, without circularity, "given an innate arbitrary display, meaning is learnable from task reward alone."
+
+## 6.5 Validation of our own methodology
+
+**Lowe et al. (2019), "On the Pitfalls of Measuring Emergent Communication," AAMAS** independently defines *positive signalling* versus *positive listening* and shows they dissociate — which is exactly the artifact we rediscovered the hard way, and their recommended causal-intervention test is what our swap probe implements. Our measurement contract is citable, not idiosyncratic.
+
 # 6. Open questions worth holding onto
 
 - Does the bias-free code complete (to ~3 bits) with more time, or is ~1 bit an
