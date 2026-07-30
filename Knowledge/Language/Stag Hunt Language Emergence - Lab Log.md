@@ -283,6 +283,26 @@ Array `stag-ck` 36020270, all 12 runs + dependent analysis complete. Runs, figur
 
 **Open next (not launched):** (a) anneal the solo reward to zero and re-run the swap test — is this language self-sustaining like the bias-scaffolded one was? (b) push `solo05` further (40k updates or vocab/attribute scaling) to see whether the code completes to the full complement; (c) ritualization redesign — remove the dedicated channel so signals must piggyback on movement, now clearly motivated; (d) hares/phase-2 risk, still untouched.
 
+## 2026-07-30 — Is solo05 really communication? Two controls say yes, with caveats
+
+Challenge raised (user): maybe the solo-reward agents are just farming the 0.5 payoff with their own private clue, and no communication is involved. Two checks.
+
+**1. Solo-farming is ruled out arithmetically.** The solo payoff is 0.5, once per episode, and does not produce a `joint_stag` outcome. Seed 2 shows **86.8% joint captures and mean return 3.78 of a 4.0 maximum** — essentially all return is cooperative capture with both agents on the *correct* stag, not solo scouting.
+
+**2. New control separating message CONTENT from message COHERENCE** (`scripts/probe_swap_controls.py`). The original swap test replaced the heard stream with one from a different episode, breaking content *and* temporal coherence together. The control adds a **same-target donor** (identical colour+region, different layout): coherence is disrupted exactly as much, content stays true.
+
+| condition | captures | targeting |
+| --- | --- | --- |
+| intact (s2) | 86.8% | 87.8% |
+| same-target swap (content right, coherence broken) | 47.6% | **87.1%** |
+| different-target swap (content wrong) | 12.0% | **57.0%** |
+
+The dissociation is clean and holds in 3/3 seeds: **breaking coherence costs 37–45% of captures but leaves targeting accuracy untouched** (agents still go to the right stag, they just rendezvous less efficiently within the horizon), whereas **wrong content costs a further 65–75% of captures and collapses targeting**. So the channel does two distinct jobs — it carries the target's identity, and it separately helps synchronise the meeting — and the referential part is now isolated from the synchronisation part.
+
+**3. The developmental sequence the user asked about is visible, and it is two-phase.** Tracking MI against behaviour across checkpoints, seed 0 is the cleanest: colour MI sits at ~0.005 bits and targeting is **flat at 25–26% from update 3,000 to 11,000** (own-clue competence — the solo reward teaching each agent to use what it holds), then from ~11–12k colour MI rises (0.019 → 0.065 → 0.141 → 0.197) and targeting climbs in lockstep (33% → 40% → 46% → 52%). Seed 2 shows the same shape earlier and further. **Communication develops after solo competence and lifts performance above what private information alone supports** — which is exactly the "use your own clue first, then learn to talk" ordering the solo reward was meant to create.
+
+**Honest caveats.** Targeting under wrong content is 57%, well above the 12.5% chance floor — a substantial share of performance is still own-clue-driven, so communication is an increment on top of private competence, not the whole story. The code remains thin (~1 bit of a task-relevant 3). And the MI figures above are the pooled ones, which understate the code by roughly the horizon (per-timestep peak is 0.68 of 1 bit for region).
+
 Related: [[Language Emergence with Stag Hunt Game]], [[Stag Hunt Language Emergence - Experiment Design]], [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
 
 ---
