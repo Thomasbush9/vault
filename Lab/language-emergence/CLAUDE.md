@@ -29,9 +29,10 @@ Pull in `decisions.md`, `lit.md`, or older logs only when relevant.
 - Runs on the Harvard cluster; the env is a plain venv at
   `/n/holylfs06/LABS/bsabatini_lab/Everyone/tbush/language/envs/lang` (not uv,
   not conda) — invoke `.../envs/lang/bin/python` explicitly.
-- `egg_start.py` and `basin_experiments.py` are **marimo notebooks**; they also
-  run headless as scripts (`python <notebook>.py`). Opening a notebook in the
-  marimo browser UI auto-runs all cells — training cells cache to disk
-  (`runs/...`) so reopening loads results instead of retraining.
+- Since 2026-07-13 the code is a package (`lang_emergence/`) + scripts
+  (`experiments/`); the old marimo notebooks are archived in `notebooks/`
+  (frozen — the basin notebook's `import seed_sweep` no longer resolves).
+  Experiment scripts cache per-run results to disk (`runs/...`), so re-running
+  them loads cached results instead of retraining; delete a run file to redo it.
 - Game outcomes are bimodal across seeds (see `log/`); never compare single
   runs across config changes — compare success rates over many seeds.

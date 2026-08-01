@@ -1,5 +1,7 @@
 The benefits of this game are the necessity of a dialogue, both agents must take actions, more naturalistic than Lewis' game.
 
+Lab log (running): [[Stag Hunt Language Emergence - Lab Log]]
+
 Design: [[Stag Hunt Language Emergence - Experiment Design]]
 
 Implementation: [[Stag Hunt Language Emergence - Repository Setup]]

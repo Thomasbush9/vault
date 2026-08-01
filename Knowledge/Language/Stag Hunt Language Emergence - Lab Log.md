@@ -1,0 +1,406 @@
+Running lab log for the stag-hunt language-emergence project. Newest entries on top.
+
+For the compressed picture — everything tried, what is established, and the option space for next steps — see [[Stag Hunt Language Emergence - Summary and Next Steps]].
+
+---
+
+## 2026-07-27 — First genuine symbolic communication (lever sweep results)
+
+All 8 lever runs completed (array 35404344; the two sticky "TIMEOUT"s are a Slurm exit artifact — all runs finished 3000 updates). Full probes on the final checkpoints, 500 eval episodes per condition. Figure: `stag-hunt-files/2026-07-26_blind-levers/blind_levers_summary.png`. Data dir reorganized into dated experiment folders (see its README).
+
+| arm / seed | eval joint stag: none / random / muted | accuracy: none / random / muted | MI color / region (bits) | verdict |
+| --- | --- | --- | --- | --- |
+| long s0 | 25% / 26% / 25% | 50% / 48% / 64% | .005 / .011 | convention |
+| long s1 | 26% / 26% / 27% | 43% / 43% / 59% | .002 / .003 | convention |
+| sticky s0 | 31% / 30% / 8% | 52% / 48% / 41% | .003 / .006 | convention |
+| sticky s1 | 48% / 46% / 24% | 93% / 92% / 84% | .003 / .002 | convention (high-performing) |
+| talk5 s0 | 32% / 31% / 28% | 85% / 83% / 83% | .002 / .002 | convention |
+| talk5 s1 | 24% / 25% / 24% | 50% / 49% / 53% | .002 / .004 | convention |
+| **aux s0** | **62% / 11% / 1%** | 83% / 58% / 43% | **1.00 / 0.98** | **causal bidirectional communication** |
+| **aux s1** | **29% / 1% / 30%** | 97% / 29% / 91% | **0.97 / 0.95** | **causal communication + convention fallback** |
+
+Readings:
+
+1. **The signaling+listening biases produced the project's first real language.** Both aux seeds saturate MI at ~1 bit *in both directions* (the full clue each way), and the random-message control — the decisive probe — collapses captures 62%→11% (s0) and 29%→1% (s1). Aux s0 hits 62% eval capture with mean return 2.49, far above the ~50% ceiling of any non-communicative rendezvous strategy; in-training it was still climbing at 60%. Honest caveat: the signaling bias *buys* MI directly, so MI alone proves nothing — the emergent part is that listeners came to causally *rely* on the content (intervention collapse), which the bias does not directly enforce (the listening bias pushes sensitivity to messages, not correct use of their meaning).
+2. **The rendezvous-convention loophole is real and is what every other arm learned.** Six of six non-aux runs show null random controls despite accuracies up to 93% — above-chance targeting with causally dead channels, exactly the camping/sweeping convention predicted last night. First-presence accuracy is officially demoted to a screening metric; verdicts require interventions.
+3. **Sticky and talk5 didn't ground symbols; they accelerated convention formation** (sticky s1 had the earliest capture-rate takeoff). Persistence and credit concentration alone don't break the speaker-listener deadlock — the deadlock had to be attacked from both ends simultaneously (aux).
+4. Curious detail: aux s1 keeps a convention as *fallback* — muting the channel leaves it at 29% (convention performance) while random symbols actively mislead it to 1%. Aux s0 is fully channel-dependent (muted → 1%). Two different equilibria under the same config.
+5. The mute-vs-random dissociation in long/sticky (muted often *raises* accuracy) is the input-distribution-shift artifact again, in the opposite direction — third instance; the random control remains the only trustworthy single probe.
+
+Next questions (not yet launched): does aux communication survive *removing* the biases (anneal coefs to 0 — is the protocol self-sustaining once formed)? Does it survive reintroducing hares (phase 2, risk-dominance)? Can aux-trained symbols transfer to a bias-free partner? And the deferred ideas: message decay sweep, uncertainty-gated speaking, population training.
+
+### Interpretation check + codebooks (same day, discussion)
+
+Extracted the learned codebooks from the aux checkpoints (P(symbol | clue), 300 episodes): seed 0 uses a **binary partition with synonyms** ({3,4} = red/west vs {silence,1,2} = blue/east); seed 1 grounded **silence as a word** (silence = red/west, any symbol = blue/east) — which retroactively explains its mute-intervention profile (forced silence is a valid, sometimes-true utterance; random symbols are lies). Vocab size is confirmed non-binding: 1 bit needed per direction, so the 5-symbol space collapses into two equivalence classes.
+
+Agreed interpretation of the aux result: the signaling bias *buys* the code, the listening bias *buys* attention; what **emerged** through task reward is the semantics — the listener's correct, reward-relevant decoding (evidence: performance far above any bias's direct optimum; seed 1's convention-fallback-under-mute vs misled-under-random asymmetry).
+
+**Critical confound found in the codebooks: both roles use the identical partition — because the agents share weights.** There is effectively one network talking to itself; the listener owns the speaker's code by construction, so comprehension was partially free. Decision (user): **decouple the agents** (separate networks per agent) and **randomize clue assignment** per episode (either agent can hold color or region; the `private_clue` slot layout already marks the held attribute), forcing each network to learn all four speak/decode mappings and making the code attribute-indexed rather than speaker-indexed. Complementary assignment keeps referents inferable without attribute marking (stops being true at 3+ attributes — a future compositionality lever). Frozen-speaker transfer is **postponed** (user: still exploring setups).
+
+## 2026-07-27 (later) — Decoupled agents + randomized clues launched
+
+Code: `--separate-actors` (two `RecurrentActor`s, per-agent BPTT, both checkpoint formats supported by the analysis), `EnvConfig.randomize_clue_assignment` (+ assignment bit in the critic state), signaling-MI loss and all diagnostics now grouped by **attribute holder** instead of agent index (`mi_color`/`mi_region` keys). 33 tests passing.
+
+Array `stag-decoupled` (job 35489336), blind phase-1 game, 4000 updates × 64, `--array=0-5%4`: `phase1_dec_{aux,none}_seed{0,1,2}` — aux = both biases at 0.1, none = no biases (the move-away-from-bias control). Both arms decoupled + randomized. Predictions: `none` → rendezvous conventions again (possibly harder to form — conventions must also be attribute-indexed now); `aux` → the decisive test of whether scaffolded emergence survives true two-mind separation; mirrored codebooks should NOT reappear.
+
+### Preliminary results (evening; 3/6 runs done — figure `stag-hunt-files/dec_preliminary_summary.png`)
+
+- **Emergence survives decoupling: 3/3 aux seeds** reach 88–94% targeting accuracy and ~19–44% capture (still climbing), with training-MI saturated at the 2-bit ceiling (both attribute directions, both independent networks, randomized roles). Takeoff needs ~1500–2500 updates vs ~500–800 shared — consistent with the listener now having to learn the speaker's code instead of owning it.
+- **Sequencing signature:** in every aux seed MI saturates ~500–1000 updates *before* accuracy/captures rise — the bias installs the code first; comprehension (the emergent part) arrives later and brings performance with it.
+- **Bias-free control much weaker under randomization:** `none` s0 only ~35–46% accuracy by update 4000 (attribute-indexed conventions are harder for two independent nets to coordinate); s1/s2 near chance early. Randomized assignment weakened the non-communicative shortcut, as hoped.
+- Verdicts still pending eval interventions (training MI is the optimized quantity); analysis running on the finished runs. Remaining: aux s1 (~2800/4000), none s1/s2 (early). Also agreed: adopt **vectorized episode collection** after this array finishes — profiling showed the trainer is latency-bound (policy calls at batch 1–2; GPU ~idle; batch-64 forward costs the same as batch-1), expected ~2–2.5× end-to-end.
+
+## 2026-07-28 — Decoupled sweep final: two independent minds, one shared language
+
+All 6 runs terminal (aux s1 timed out at 3127/4000 on a slow node — analyzed at checkpoint 3000; results unaffected). Runs + figures filed in `stag-hunt-files/2026-07-27_decoupled/` (`dec_summary.png`).
+
+| run | eval joint: none / random / muted | accuracy: none / random / muted | eval MI c/r | verdict |
+| --- | --- | --- | --- | --- |
+| dec aux s0 | 24% / **0%** / 24% | 94% / — / 77% | 0.97 / 0.96 | **causal communication** + silence fallback |
+| dec aux s1 | 24% / **0.2%** / 24% | 98% / 33% / 72% | 0.97 / 0.96 | **causal communication** + silence fallback |
+| dec aux s2 | **51%** / 12% / 0.2% | 94% / 53% / 25% | 1.00 / 0.88 | **causal communication**, fully channel-dependent |
+| dec none s0 | 25% / 25% / 22% | 43% / 41% / 48% | ~0.002 | convention |
+| dec none s1 | 27% / 27% / 25% | 33% / 32% / 34% | ~0.0005 | weak convention |
+| dec none s2 | 25% / 24% / 22% | 44% / 39% / 61% | ~0.002 | convention |
+
+Findings:
+
+1. **Scaffolded emergence fully survives decoupling: 3/3 vs 0/3.** With separate networks and randomized roles, every biased seed developed causal bidirectional communication (random-message collapse to 0–12% captures); every bias-free seed produced a convention with a dead channel.
+2. **The shared-lexicon result (per-network codebooks, 400 episodes):** within each aux seed, the two *independently initialized* networks converged on the *same* code with near-identical probabilities — s0/s1: silence = red/west, any symbol = blue/east; s2: {sil,3,4} = red/west vs {1,2} = blue/east. The code is **attribute-agnostic** (same partition for color and region; the referent is inferred from complementarity), and **silence is grounded as a word in all three seeds**. The mirrored-partition structure seen under weight sharing was therefore *not* an artifact — it's the convergent economical solution; but now it's genuinely *negotiated* between two minds rather than inherited from shared parameters.
+3. **Open observation — an execution gap:** aux s0/s1 target at 94–98% accuracy yet capture in only ~24% of eval episodes (≈ the convention arms' rate; only s2 converts knowledge into 51% captures). With positions hidden, *finding each other at the agreed stag* within the horizon is now the binding constraint, not knowing where to go. Candidate follow-ups: longer horizon at eval, movement-efficiency analysis, or whether s2's higher capture rate reflects a faster meeting protocol worth characterizing.
+4. Sequencing signature held in all three aux seeds: MI saturates 500–1000 updates before accuracy/captures move — code first, comprehension later.
+
+**Infrastructure:** vectorized episode collection adopted (post-array, as agreed): NumPy observation encoder (exact-parity tested), lockstep stepping of all envs with one batched forward per agent per timestep, single H2D/D2H per step; replay-determinism test; 35 tests green. Benchmark: 1.7 s/update at production settings on the MIG slice vs 4.1–4.5 s/update the decoupled runs averaged on full H100s — expect 4000-update runs in ~1–1.5 h now.
+
+**Open next steps:** bias anneal → self-sustaining protocol test; frozen-speaker transfer (infrastructure now ready, user-postponed); phase-2 hare reintroduction; execution-gap characterization; deferred ideas (message decay, uncertainty-gated speaking, 3+ attributes for compositionality pressure).
+
+## 2026-07-28 — Why doesn't language emerge without the bias? (8-stag sweep launched)
+
+Decision (user): slow down and interrogate the no-bias failure rather than push
+new capabilities. Central manipulation: an **8-stag game** (4 colors × 2
+regions) that raises the value of communication and starves the alternatives —
+chance targeting drops 25% → 12.5%, the rendezvous-convention capture ceiling
+drops to ~25%, and the EV table becomes asymmetric (color clue = 2 bits, region
+= 1 bit): no info EV 0.5, region-only 1.0, color-only 2.0, bidirectional 4.0
+vs stag = 4. Vocabulary (4+silence) is now *exactly sufficient* for one-shot
+color naming — mild efficient-coding pressure for free.
+
+Array `stag-8stag` (job 35658979), all arms decoupled + randomized clues +
+blind + vectorized trainer (new `--n-colors/--n-regions/--vocab-size` flags):
+
+- `big8_none` ×3 (6000 updates): the question — does 8× communication value
+  ignite emergence without any bias? (Prediction: no — the deadlock is a
+  gradient-structure problem, not a payoff-size problem. If it DOES emerge,
+  the whole bias story reduces to an economics story.)
+- `big8_aux` ×3 (6000): positive control at higher entropy; does the lexicon
+  grow beyond a binary partition to name 4 colors?
+- `sig_only` ×2 / `lis_only` ×2 (2×2 game, 4000): deadlock decomposition —
+  which half (informative speaking vs attentive listening) is the binding
+  constraint? Prediction: both fail alone (code-without-audience /
+  attention-without-content), confirming two-sidedness.
+
+### Results (same day; all runs done in 34–80 min each thanks to vectorization; figure `2026-07-28_8stag-deadlock/deadlock_8stag_summary.png`)
+
+| arm | eval joint: none / random / muted | accuracy: none / random | verdict |
+| --- | --- | --- | --- |
+| **sig_only s0** | **75% / 24% / 25%** | 96% / 75% | **causal + graceful fallback — project best** |
+| **sig_only s1** | **73% / 22% / 27%** | 97% / 71% | same |
+| lis_only s0 | 7% / 1% / **0%** | 35% / 19% | no code; obligate attention to babble |
+| lis_only s1 | 27% / 22% / **0%** | 43% / 45% | convention; mute-paralysis |
+| big8_none ×3 | 3–5% / ≈same / ≈same | 11–14% ≈ chance | dead flat for 6000 updates |
+| big8_aux s0,s2 | 2–4% / ~1% / **0%** | 9–12% | MI bias never engaged; listening pathology only |
+| big8_aux s1 | 5% / 2% / 4% | 23% | late MI takeoff (2.5/3 bits), unconverged |
+
+Findings — the answer to "why no emergence without the bias":
+
+1. **The deadlock is asymmetric: production is the missing gradient, comprehension is free.** The signaling bias alone yields the strongest communication yet (75%/73% captures, return ≈ 3.0, MI ≈ 0.9 bits/direction): given informative symbols, listeners learn to decode them from task reward alone. The listening bias alone produces nothing (attention to noise ≠ content). So the two-sided-deadlock model was half right — only the speaker side truly lacks a gradient path (a speaker's informative symbol is credited only through listener behavior that doesn't exist yet; a listener attending to informative symbols is rewarded immediately).
+2. **Unforced listeners are robust listeners.** sig_only agents under random messages keep 71–75% *accuracy* (they discount incoherent streams and fall back to the convention, captures → ~23%), whereas every listening-bias run is an *obligate* listener — muting collapses big8_aux and lis_only runs to literally 0/500. The listening bias caused the earlier "execution gap": forced sensitivity ≈ fragility. **Drop the listening bias going forward.**
+3. **Payoff size does not break the deadlock.** 8× communication value (big8_none): perfectly flat at the 12.5% chance floor for 6000 updates, null interventions. The failure is gradient-structural, full stop.
+4. **The MI bias itself stalls at 4 colors (2/3 seeds)** — hypothesis: the message-entropy bonus (0.05) now directly opposes the code. At 2×2 the synonym-partition lexicon delivered max MI *at high entropy* (the objectives were compatible — that's why synonyms emerged); naming 4 colors among 5 signals requires near-deterministic messages, so entropy and MI now trade off and the uniform-babble solution is a local optimum. Fix to test: message entropy ~0.01 or annealed.
+
+**Proposed next (pending user):** `sig_only` at 8 stags with message entropy 0.01 vs 0.05 — the single most promising configuration for strong, minimally-scaffolded language; then bias-anneal on a sig_only checkpoint (self-sustainability), then frozen-speaker transfer.
+
+### sig8 results (same day, array 35730280; user approved 8-stag sig-only)
+
+Entropy-conflict hypothesis **confirmed on the speaker side**: message entropy 0.05 → MI stuck at 0.00 in 2/3 seeds (same stall as big8_aux); entropy 0.01 → MI engages in **3/3 seeds** (2.47 / 1.90 / 1.24 of the 3-bit ceiling by q4). But performance lags the code: best runs reach only 22–25% accuracy (chance 12.5%) and 9–13% captures at 6000 updates, still climbing ~linearly. At 2×2, comprehension came fast and free; at 4×2 the listener's reward-driven decoding is the slow step (4 speak/decode mappings, rare captures, partial codes: seed 2 plateaued at 1.24 bits — likely region + partial color only). Extended runs launched: `sig8L` (job 35736459) = entropy 0.01, **16000 updates**, 3 seeds. Codebook/intervention analysis of the 6000-update runs in progress.
+
+Also under discussion (user proposal, design phase): **free-goal game** — remove the designated target, let agents choose and negotiate the goal (communication = intention, not injected fact). Key design constraint identified: with symmetric full observability and equal-value stags, a Schelling convention kills the need for language — decision-relevant *private* information must remain (candidate designs: private positions / private per-stag value draws / private perception). Measurement shifts to MI(message; captured stag), intent-decoding probes, and the unchanged intervention contract. Code: `/n/holylfs06/LABS/bsabatini_lab/Everyone/tbush/stag-hunt-language-emergence`, artifacts: `/n/holylfs06/LABS/bsabatini_lab/Everyone/tbush/stag-hunt-files`. Detailed run-by-run record: `docs/experiments/2026-07-23-risk-curriculum.md` in the repo.
+
+## 2026-07-28 (later) — sig8/sig8L final: every seed's colour code freezes one merged pair
+
+All sig8 (6000 up) and sig8L (16,000 up) runs analyzed (500 eval episodes/condition). Runs + figure filed in `stag-hunt-files/2026-07-28_sig8-entropy/` (`sig8_summary.png`). Repo committed & pushed (`24193e9`).
+
+| run (16k) | eval joint: none / muted / random | accuracy: none / random | eval MI c (of 2) / r (of 1) | verdict |
+| --- | --- | --- | --- | --- |
+| sig8L s0 | **23% / 11% / 7%** | 39% / 26% | 1.47 / 1.00 | **causal** — best 8-stag result |
+| sig8L s1 | 12% / 6% / 6% | 26% / 22% | 1.48 / 1.00 | production without comprehension |
+| sig8L s2 | **18% / 5% / 6%** | 32% / 14% | 0.71 / 1.00 | **causal** despite weakest code |
+| sig8 me05 s1,s2 (6k) | 3–5%, flat | ≈ chance | **0.000** / 0.000 | dead channel — entropy conflict confirmed |
+
+Findings:
+
+1. **The missing bits are localized: every seed merges exactly one colour pair.** Codebooks (P(message|clue)): s0 = red→silence, green+amber→m3, blue→{m1,m2,m4} synonyms; s1 = green→silence, amber→{m1,m3}, red+blue→{m2,m4}; s2 = red/blue/green-amber distinguished at half rate with m1 as an uninformative filler in every colour. MI 1.47–1.48 is *exactly* the 2 − 0.5 signature of one merged equiprobable pair. Different pairs merge in different seeds → the 3-way collapse is structural, not stimulus-driven.
+2. **Why it freezes (hypothesis, now well-supported): each new lexical distinction faces its own bootstrapping problem.** Splitting the merged pair requires repurposing a synonym the listener currently decodes otherwise; every gradient step through that split passes through a miscoordination valley. The deadlock we broke at the channel level recurs per-distinction — scaffolding got the language started but each additional word must pay its own two-sided coordination cost.
+3. **The binary region bit always completes** — MI(region) hits 1.00 in 3/3 seeds, with s1 acquiring it between 6k→10k and s2 between **14k→16k** (codes still moving late; brute time genuinely does something).
+4. **Comprehension remains the slow step.** s1 carries a full 2.48-bit code yet uses it at chance (random control null) — the clearest dissociation of production from comprehension yet. s0's accuracy jumps 27%→40% in the last 2k updates (takeoff-like), captures 23%.
+5. Entropy 0.05 vs 0.01 is decisively settled (0.05 = dead channel 2/3; 0.01 = engaged 3/3). me0.01 is the standard going forward.
+
+**Launched:** array `stag-sig8x` (35779510): `bt40k` = 40,000 updates ×3 seeds (does the per-distinction grind finish?) and `b128` = batch 128 × 16,000 updates ×3 (equal episode budget — is reward *density* the binding constraint?). Both user-approved.
+
+**Direction discussion (user):** doubts remain about the MI bias as the long-term approach. Three user proposals assessed: (a) **private goal representation + navigation pre-training** (phase A: full goal visible, learn goal-conditioned navigation without communication; phase B: remove direct goal input, communication must write into the goal slot) — strongest idea, attacks the measured bottleneck (listener currently learns navigation *and* decoding simultaneously), and is bias-free in the sense that matters (no loss touches the message distribution; the scaffold is a curriculum). Next experiment candidate. (b) **Multi-round episodes / cumulative reward** (respawn stags after capture) — densifies reward and forces reusable codes over "follow-me" conventions; deferred until `b128` answers whether density matters. (c) **Bias-free emergence as the target** — agreed; cheap complement = bias-anneal from a converged sig checkpoint (is the communicative equilibrium self-sustaining without the bias?), still queued.
+
+## 2026-07-28 (evening) — Density completes the language; the bias is a discovery scaffold only
+
+Two arrays, two answers. Runs + figure in `stag-hunt-files/2026-07-28_density-and-anneal/` (`density_anneal_summary.png`). All runs decoupled, randomized clues, blind, 8 stags, signaling 0.1, message-entropy 0.01 unless noted.
+
+**Array `stag-sig8x` (35779510): brute time (bt40k = 40,000 updates × batch 64) vs reward density (b128 = 16,000 × batch 128), equal episode budgets (~2.6M vs ~2.0M episodes).**
+
+| run | eval joint: none / muted / random | accuracy: none / random | eval MI c (of 2) / r (of 1) | verdict |
+| --- | --- | --- | --- | --- |
+| b128 s0 | **86% / 6% / 5%** | 93% / 29% | 1.93 / 0.98 | **causal, near-ceiling code** |
+| b128 s1 | **87% / 14% / 5%** | 91% / 35% | 1.93 / 0.99 | same |
+| b128 s2 | **78% / 8% / 6%** | 88% / 33% | 1.63 / 0.99 | causal, code still completing |
+| bt40k s0 | 42% / 13% / 9% | 55% / 32% | 1.44 / 0.99 | causal, pair still merged at 40k |
+| bt40k s1 | 51% / 13% / 7% | 68% / 27% | 1.53 / 1.00 | same |
+| bt40k s2 | 26% / 4% / 7% | 35% / 25% | 0.72 / 1.00 | causal, half-code never grew |
+
+Findings:
+
+1. **Reward density, not time, breaks the per-word deadlock.** With fewer total episodes, batch 128 gets 3/3 seeds past the merged-pair plateau; batch 64 gets 0/3 even at 40k updates. The mechanism is visible in the MI traces: discrete upward splits (b128 s0 at ~update 11k: 2.5→2.9; s1 at ~3k; s2 stepwise) — the frozen colour pair actually splits mid-training once the listener gradient is low-variance enough to make the split profitable. Halving gradient variance per update is worth more than doubling updates.
+2. **b128 s0 codebook = a genuine 4-colour naming system**: amber→silence, green→m1, blue→m4, red→{m2,m3}. First full referential vocabulary in the project.
+3. bt40k confirms time alone half-works (all causal, captures 26–51%) — the grind is real but the merged pair is an equilibrium that batch 64 noise cannot escape.
+4. Practical: batch 128 is the default going forward. This also upgrades the multi-round/cumulative-reward idea from speculative to mechanism-backed (it densifies capture events *within* the trajectory).
+
+**Array `stag-anneal` (35881719): bias-anneal self-sustainability.** New trainer flag `--init-checkpoint` (warm-starts actors+critics+optimizer; repo `02fab23`). Fine-tune 4,000 updates × batch 128 from b128 s0/s1 checkpoints: `anneal` = signaling coef **0**, `cont` = kept 0.1 (drift control).
+
+| run | eval joint: none / muted / random | eval MI c / r | training trend |
+| --- | --- | --- | --- |
+| anneal s0 | **88% / 6% / 9%** | 1.89 / 0.97 | flat at ~88% |
+| anneal s1 | **92% / 14% / 5%** | 1.73 / 0.98 | **rising** (87→93% in-training) |
+| cont s0 | 88% / 7% / 8% | 1.89 / 0.96 | flat |
+| cont s1 | 95% / 15% / 5% | 1.99 / 1.00 | rising (→95.5%) |
+
+Findings:
+
+5. **The language is self-sustaining without the bias.** Zero decay in ~512k bias-free episodes; anneal trajectories are indistinguishable from bias-kept controls; codes remain causal (random control → 5–9%). The honest claim is now complete: *the signaling bias is needed to discover the language; the communicative equilibrium is a stable — and still improving — fixed point of the unbiased game.* This substantially answers the "MI is bought" concern: bought once, self-financing thereafter.
+6. Subtle and interesting: anneal s1's colour MI compressed 1.93→1.73 while captures *rose* — task reward maintains reward-bearing distinctions but lets redundant informativeness go. Under pure task pressure the code is selected for sufficiency, not informativeness per se.
+
+**Open next (discussed, not launched):** pre-training curriculum for bias-free *discovery* (phase A: goal directly observed, learn navigation; phase B: remove goal input, communication fills the slot) — now the main frontier since maintenance is solved; multi-round episodes (mechanism-backed by the density result); free-goal design still pending spec approval.
+
+## 2026-07-28 (night) — Bias-free 2×2 launched; pretraining rejected on naturalism grounds
+
+**Design decision (user):** drop the pretraining curriculum as a headline experiment. The objection is decisive — a two-phase curriculum is the *same epistemic move* as the MI bias, just relocated from the loss function into the training schedule. Both are experimenter-staged scaffolds, and neither supports the claim we actually want ("language emerges from the ecology of the game"). The lever should be the **environment and the architecture**, designed so that the gradient path for communication exists naturally and stationarily.
+
+**Launched: array `stag-biasfree` (35933257), 12 runs, NO auxiliary losses anywhere** (signaling 0, listening 0). 8 stags, decoupled, randomized clues, message-entropy 0.01, **batch 128** (today's density result means every earlier no-bias arm was confounded by gradient starvation at batch 64 — this is the fair retest), 16,000 updates, 3 seeds per cell:
+
+| factor | level A | level B |
+| --- | --- | --- |
+| environment | `flat` — blind game as before | `coobs` — `co_observation_prob=0.5`: per episode each agent independently sees BOTH attributes with p=0.5 |
+| architecture | `untied` — separate message head and input encoding | `tied` — one symbol-embedding matrix E for producing and hearing (`logits = speak_proj(h) @ E.T`; heard symbols routed through E) |
+
+Rationale. **Stochastic observability** is the pretraining idea converted from a curriculum *in time* into a mixture *in the environment*: single-phase, stationary, ecologically honest (perception is sometimes sufficient, sometimes not), and it supplies exactly the missing speaker gradient — in a co-observed episode the listener can ground the partner's symbols against its own view instead of against rare capture reward; once partial decoding exists, speakers earn credit in the blind episodes where communication actually pays. **Tied embeddings** are the motor-theory-of-perception move: learning to *say* a symbol informatively also moves the representation used to *hear* it, so production and comprehension stop being independent problems and the two-sided coordination problem partly collapses into within-agent self-consistency plus overlapping priors between the two agents. Code: `EnvConfig.co_observation_prob`, `RecurrentActor(tied_symbols=True)`, flags `--co-observation-prob/--tied-symbols`, 40 tests passing, repo `8acaf7a`.
+
+Both agents take both roles throughout (`--randomize-clues`): verified at p=0.5 co-observation, each agent gets ~25% colour-only, ~25% region-only, ~50% both — symmetric, so neither network can specialise into a fixed speaker or listener.
+
+**Resource note (measured 2026-07-28 — reuse this, and don't trust nvidia-smi utilization for this workload):** a single run occupies ~1 CPU core and only ~900 MiB of an 80 GiB H100, and nvidia-smi reports ~2% utilization — which looks like room for ~50 runs per GPU. That reading is misleading. The trainer is **latency-bound** (many tiny kernel launches per step), so multiple CUDA contexts time-slice badly. Measured cost per run: **0.62 s/update solo, 3.03 s/update at 6 runs/GPU** (4.9× slower; aggregate throughput per GPU rose only 1.61→1.98 updates/s, a 23% gain, while per-run walltime would have hit 13.5 h and breached the limit). CPU was verified *not* to be the constraint (every packed process held a full core, 99% instantaneous). Settled at **2 runs/GPU: 0.80–0.92 s/update, ~4 h for 16k updates** — half the GPUs for a ~40% per-run slowdown. Rule of thumb: pack 2, never 6; CUDA MPS would be the proper fix if denser packing is ever needed.
+
+Verdicts will use the unchanged intervention contract (random-message control decisive). The analysis array `stag-bf-analyze` (35933748) is queued with `--dependency=afterany` on the training array, so MI-per-checkpoint, codebooks and the mute/random interventions run automatically for all 12 runs as soon as training ends (~4 h). Multi-round/cumulative-reward episodes remain queued as a third, compatible pressure (in-episode density) if the 2×2 alone doesn't ignite.
+
+### Ritualization — reading list (user request)
+
+The most naturalistic origin story for signals: behaviors that originally had a direct instrumental function get *observed* by a partner, then conventionalize/stylize into cheap signals. Held in reserve behind the 2×2 because it needs a bigger env redesign, but it is the direction with the best biological warrant.
+
+- **Top pick — Scott-Phillips, Kirby & Ritchie (2009), "Signalling signalhood and the emergence of communication," *Cognition* 113(2):226–233, doi:10.1016/j.cognition.2009.08.009.** Isolates precisely our blocker as the general "signalhood" problem: how can a behaviour come to be recognised *as* a signal with no pre-existing convention? Their Embodied Communication Game (humans, no dedicated channel) shows signalhood is bootstrapped through common ground and iterative mutual adjustment — i.e. it is a negotiated state, not a channel property given in advance.
+- **Top computational pick — Quinn (2001), "Evolving Communication without Dedicated Communication Channels," ECAL 2001, LNCS 2159:357–366, doi:10.1007/3-540-44811-X_38.** Evolved robots with *no dedicated signalling channel* — signals had to pass through the same effectors used for the task. Functional non-communicative behaviour evolved first and became the substrate communication was built on. The direct precedent for making our channel non-dedicated (signals piggybacking on movement).
+- **Inoue & Wakabayashi (2025), "Communication emergence under reward delay," *Artificial Life and Robotics*, doi:10.1007/s10015-025-01091-5.** MARL formalisation of our exact problem: under reward delay the sender's signalling action needs *direct utility of its own* to bootstrap what they call the ritualization process; stabilising the sender matters more than the receiver. Maps one-to-one onto giving the proto-signal an instrumental payoff.
+- **Halina, Rossano & Tomasello (2013), "The ontogenetic ritualization of bonobo gestures," *Animal Cognition* 16(4):653–666, doi:10.1007/s10071-013-0601-7.** The clearest empirical mechanism, caught in the act: actor performs instrumental act A → partner starts responding to the *early/incomplete* portion of A → actor truncates A into a stylised cue. Directly implementable as a dynamic (anticipation + efficiency pressure → compression).
+- Classics for vocabulary and metrics: **Tinbergen (1952), "'Derived' Activities," *Quarterly Review of Biology* 27(1):1–32, doi:10.1086/398642** (displacement activities becoming signals) and the **Royal Society symposium, *Phil. Trans. R. Soc. B* 251(772) (1966)**, incl. **Lorenz, "Evolution of ritualization…," doi:10.1098/rstb.1966.0011** — the hallmarks (repetition, exaggeration, stereotypy, *emancipation* from the original context) are directly operationalisable as measurable properties of an emergent signal.
+- Formal backbone: **Skyrms, *Signals: Evolution, Learning, and Information* (OUP 2010)** — how a symbol repertoire can grow from nothing under simple reinforcement dynamics.
+- Cautions worth reading before claiming ritualization: **Byrne et al. (2017), *Animal Cognition* 20:755–769, doi:10.1007/s10071-017-1096-4** (many ape gestures may be innate, not ritualized) and **Macmillan-Scott & Musolesi (2025), *PLOS Comp Biol*, doi:10.1371/journal.pcbi.1013302** (MARL agents often reach cooperation *without* signalling — exactly our movement-only convention loophole).
+
+Unverified details flagged by the search: the exact origin of the term "ontogenetic ritualization" (probably Tomasello's 1990s work following Tomasello, Gust & Frost 1989) and which year Huxley coined "ritualization" (1914/1923/1966 all reported).
+
+**Design sketch if we go ritualization next:** remove the dedicated symbol channel entirely; make an instrumental action (a move, or an orientation/gaze visible only within a radius) the only observable, and let a *cheap* stylised variant of it become available so the pressure is toward compression rather than invention. Metrics would follow the ethological hallmarks: stereotypy (entropy collapse of the action's form), emancipation (does it fire outside its original instrumental context?), and iconicity (does the ritualized form retain a trace of the movement it came from — e.g. still points stag-ward?).
+
+## 2026-07-29 — Bias-free 2×2: a comprehensive null, and a diagnosis that reframes the problem
+
+All 12 runs completed overnight (array 35933257, ~4 h at 2 runs/GPU) and the dependent analysis array (35933748) produced every verdict. Runs + figure filed in `stag-hunt-files/2026-07-29_biasfree-2x2/` (`biasfree_2x2_summary.png`).
+
+| cell | eval MI c / r (of 2 / 1) | captures: none / muted / random | accuracy | verdict |
+| --- | --- | --- | --- | --- |
+| blind + untied (control) | 0.00–0.03 / 0.05–0.26 | 11–32% / 6–12% / 7–9% | 22–43% | no code |
+| blind + tied | 0.00–0.01 / 0.00–0.01 | 12–36% / 12–36% / 12–37% | 25–62% | no code (best cell = pure convention) |
+| co-observation + untied | 0.00 / 0.05–0.11 | 18–22% / 11–14% / 14–16% | 20–24% | no code |
+| co-observation + tied | 0.00 / 0.00–0.01 | 14–26% / 14–21% / 14–22% | 26–27% | no code |
+
+**Neither lever worked, alone or together.** MI never leaves zero in 16,000 updates. The strongest run (blind+tied s2: 36% captures, 62% targeting) is a rendezvous convention with a completely dead channel — the loophole we already know.
+
+Two follow-up probes were needed because a few runs showed captures dropping under the random-message intervention *despite* MI ≈ 0 (e.g. blind+untied s1: 32% → 8.6%), which would have been a striking "causal but non-referential channel" result:
+
+1. `probe_nonreferential.py` — MI between the emitted symbol and every plausible referent: own clue, speaker quadrant/x-half/y-half, episode phase, partner position. **All ≤ 0.044 bits.** The messages are not about anything, so the intervention drop is the input-distribution-shift artifact again (4th sighting; random symbols perturb a GRU trained on its own babble statistics). Methodological reinforcement: an intervention drop is only evidence of communication when paired with non-zero MI.
+2. `probe_coobs.py` — capture and targeting split by how many agents could see the full target. **This is the real finding: targeting accuracy is flat at 16–31% whether NEITHER, ONE, or BOTH agents are fully informed** (chance 12.5%; a fully-informed agent could hit 100%). Captures likewise flat (~18–29%).
+
+**Diagnosis — the blocker is upstream of communication.** Agents never learn to use target information they *already possess*. Two compounding reasons, both structural:
+
+- **No individual gradient for using private information.** In the presence game a lone agent standing on the correct stag earns nothing; only joint presence pays. So "walk to the target I can see" has no reward signal of its own.
+- **Co-observation is private, so it never becomes common knowledge.** An agent that sees the full target has no way to know whether its partner also sees it. Acting on private knowledge is a gamble that pays only if the partner happens to be informed *and* acts — expected value too low to bootstrap. This is why the design failed where the signaling bias succeeded: an informative *message* is inherently shared, creating approximate common knowledge; co-observation is not.
+
+This retrospectively explains the whole bias story. The signaling bias never "bought comprehension" — it manufactured the one thing this environment cannot produce on its own: information that both agents know they share.
+
+**Next experiment — LAUNCHED (user approved), array `stag-ck` 36020270 + dependent analysis 36020271.** Still zero auxiliary losses; 8 stags, decoupled, randomized clues, untied, batch 128, 16,000 updates, 3 seeds per arm, 2 runs/GPU (~4 h).
+
+| arm | `co_observation` | `solo_presence_reward` | tests |
+| --- | --- | --- | --- |
+| `fog50` | 0.5, **mode=shared** | 0 | does common knowledge alone fix it? |
+| `solo05` | none (blind) | 0.5 | does an individual gradient alone fix it? |
+| `fog50solo` | 0.5, shared | 0.5 | both — the predicted winner |
+| `fog25solo` | 0.25, shared | 0.5 | robustness: only a quarter of episodes clear |
+
+Code (repo, 44 tests): `EnvConfig.co_observation_mode="shared"` draws visibility **once per episode** ("clear" vs "foggy" weather) so both agents always share the condition — visibility becomes common knowledge, and an agent that sees the target knows its partner does too. `EnvConfig.solo_presence_reward` pays a lone agent 0.5 (vs 4.0 joint) once per episode for standing on the correct stag, so *using* your own information pays before coordination does; validated to stay below `stag_reward/2` so solo scouting cannot displace cooperation. Role symmetry re-verified under the new mode (each agent ~24% colour-only, ~26% region-only, ~50% both; both agents always share the fog condition).
+
+Predictions worth recording before the data lands: (i) clear episodes should show targeting accuracy climb far above the 16–31% ceiling we just measured — if it does not, the common-knowledge diagnosis is wrong and the problem is plain credit assignment; (ii) `solo05` should raise targeting without raising *joint* captures much (individual competence, no coordination); (iii) only the combined arms can produce language, and it should appear in the foggy episodes first, with comprehension transferred from the clear ones. A null in `fog50solo` would mean the ecology route needs the ritualization redesign (non-dedicated channel) rather than another visibility knob.
+
+## 2026-07-29 (evening) — FIRST BIAS-FREE CAUSAL LANGUAGE: pay a lone agent to use what it knows
+
+Array `stag-ck` 36020270, all 12 runs + dependent analysis complete. Runs, figure and swap numbers in `stag-hunt-files/2026-07-29_common-knowledge/` (`commonknowledge_summary.png`, `swap_test_results.json`).
+
+| arm | captures (3 seeds) | targeting | swap test: content dependence | verdict |
+| --- | --- | --- | --- | --- |
+| **`solo05`** (solo reward 0.5, blind) | **55 / 46 / 85%** | 54 / 57 / 90% | **80 / 74 / 84%** | **causal bias-free language, 3/3** |
+| `fog50solo` | 46 / 58 / 36% | 56 / 72 / 44% | 29 / 39 / 43% | partial code, weaker |
+| `fog25solo` | 34 / 31 / 31% | 37 / 38 / 39% | 60 / 59 / 38% | partial code |
+| `fog50` (shared fog only) | 14 / 20 / 18% | 24 / 29 / 23% | 19 / 30 / 30% | near-null |
+
+**1. The missing ingredient was the individual gradient, not common knowledge.** A 0.5 payoff for standing *alone* on the correct stag (vs 4.0 for a joint capture, once per episode) takes the game from yesterday's 20% ceiling to 43–87% captures with no auxiliary loss anywhere. My primary hypothesis — that private co-observation failed because it was not common knowledge — is **falsified**: shared fog alone barely moves anything, and its both-informed targeting is 24.7% vs 22.0% foggy, i.e. agents *still* ignore a target they can both see. What they needed was a reason to act on information at all.
+
+**2. New decisive probe, and it retires mute/random.** `scripts/probe_shuffle.py` replays a *real* message stream from a different episode at the same timestep: the listener hears exactly the statistics it was trained on, but the content refers to another episode's target. This controls the input-distribution-shift artifact that has fooled us four times. `solo05` collapses 87%→14%, 54%→11%, 43%→11% — **74–84% of captures depend on message content**. That is the cleanest causal evidence of communication the project has produced, and it required no bias of any kind.
+
+**3. Shared fog actively backfires when combined with the solo reward** (content dependence 37% mean vs 80% for solo alone; captures also lower). Clear episodes let agents solve the task without talking, so the pressure to develop a code is diluted. Free information is the enemy of language — a result that is obvious in hindsight and worth stating in any write-up.
+
+**4. The code is low-bandwidth but load-bearing, which reframes the earlier MI numbers.** Per-timestep MI (`scripts/probe_timing.py`, added because pooled MI dilutes a briefly-used protocol by the horizon): region peaks at **0.68 of 1 bit on the very first step**, colour at 0.47 of 2 around t=5–6; pooled values are only 0.2–0.3. Codebook at the informative step is systematic (amber→m1 0.62, red/blue→m3, green spread). Crucially, agents only need to transmit **the complement of what the partner already holds** — so ~1–1.5 bits is task-sufficient, and the 2.9/3 bits the signaling-bias runs reached was over-specification driven by the MI objective rather than by the task.
+
+**Interpretation.** The deadlock was never purely about the speaker's gradient. In a game that pays only for joint presence, *no agent has any reason to act on private information*, so there is nothing for a listener to learn to decode and nothing for a speaker's symbol to influence. Giving individual competence a small payoff creates the first link in the chain (use what you know), and communication then emerges to complete it (learn what your partner knows). This is exactly Inoue & Wakabayashi's (2025) prediction that the sender needs direct utility to bootstrap under reward delay — now confirmed in our setting, and it strengthens the case for the ritualization programme, where signals grow out of instrumentally useful behaviour.
+
+**Open next (not launched):** (a) anneal the solo reward to zero and re-run the swap test — is this language self-sustaining like the bias-scaffolded one was? (b) push `solo05` further (40k updates or vocab/attribute scaling) to see whether the code completes to the full complement; (c) ritualization redesign — remove the dedicated channel so signals must piggyback on movement, now clearly motivated; (d) hares/phase-2 risk, still untouched.
+
+## 2026-07-30 — Is solo05 really communication? Two controls say yes, with caveats
+
+Challenge raised (user): maybe the solo-reward agents are just farming the 0.5 payoff with their own private clue, and no communication is involved. Two checks.
+
+**1. Solo-farming is ruled out arithmetically.** The solo payoff is 0.5, once per episode, and does not produce a `joint_stag` outcome. Seed 2 shows **86.8% joint captures and mean return 3.78 of a 4.0 maximum** — essentially all return is cooperative capture with both agents on the *correct* stag, not solo scouting.
+
+**2. New control separating message CONTENT from message COHERENCE** (`scripts/probe_swap_controls.py`). The original swap test replaced the heard stream with one from a different episode, breaking content *and* temporal coherence together. The control adds a **same-target donor** (identical colour+region, different layout): coherence is disrupted exactly as much, content stays true.
+
+| condition | captures | targeting |
+| --- | --- | --- |
+| intact (s2) | 86.8% | 87.8% |
+| same-target swap (content right, coherence broken) | 47.6% | **87.1%** |
+| different-target swap (content wrong) | 12.0% | **57.0%** |
+
+The dissociation is clean and holds in 3/3 seeds: **breaking coherence costs 37–45% of captures but leaves targeting accuracy untouched** (agents still go to the right stag, they just rendezvous less efficiently within the horizon), whereas **wrong content costs a further 65–75% of captures and collapses targeting**. So the channel does two distinct jobs — it carries the target's identity, and it separately helps synchronise the meeting — and the referential part is now isolated from the synchronisation part.
+
+**3. The developmental sequence the user asked about is visible, and it is two-phase.** Tracking MI against behaviour across checkpoints, seed 0 is the cleanest: colour MI sits at ~0.005 bits and targeting is **flat at 25–26% from update 3,000 to 11,000** (own-clue competence — the solo reward teaching each agent to use what it holds), then from ~11–12k colour MI rises (0.019 → 0.065 → 0.141 → 0.197) and targeting climbs in lockstep (33% → 40% → 46% → 52%). Seed 2 shows the same shape earlier and further. **Communication develops after solo competence and lifts performance above what private information alone supports** — which is exactly the "use your own clue first, then learn to talk" ordering the solo reward was meant to create.
+
+**Honest caveats.** Targeting under wrong content is 57%, well above the 12.5% chance floor — a substantial share of performance is still own-clue-driven, so communication is an increment on top of private competence, not the whole story. The code remains thin (~1 bit of a task-relevant 3). And the MI figures above are the pooled ones, which understate the code by roughly the horizon (per-timestep peak is 0.68 of 1 bit for region).
+
+Related: [[Language Emergence with Stag Hunt Game]], [[Stag Hunt Language Emergence - Experiment Design]], [[Stag Hunt Language Emergence - Episode and Agent Architecture]]
+
+---
+
+## 2026-07-26 — Design review, phase plan, presence-based phase-1 game
+
+### New finding from the old data: cooperation without any information transfer
+
+Re-analysis of the cooperative run `cw3s_hare10_seed0` (eval, 500 episodes): 108 `joint_stag` vs 306 `failed_stag`. Even if every failure were a joint attempt at the wrong stag, targeting accuracy is ≤ 26% — and **25% is exactly chance** for two agents guessing independently from their private clues (each picks between its 2 clue-consistent stags; they coincide on the correct one 1/4 of the time). Mean eval return 0.93 is below the trivial hare payoff of 1.0.
+
+Interpretation: the "movement-carried coordination" we celebrated is likely just *meet-and-pounce-together* — synchronization was solved, but **zero bits about the target are being transferred, symbolically or positionally**. The old logs can't separate joint-wrong-stag from solo window expiry, so this was invisible until now; a targeting-accuracy diagnostic is added as of today (see below).
+
+### Expected return for collaboration (analytic)
+
+With 4 stags (2 colors × 2 regions), stag = 4, clues jointly identify the target:
+
+| Information exchanged | P(both at correct stag) | EV of stag attempt | vs hare = 2 | vs hare = 1 |
+| --- | --- | --- | --- | --- |
+| none (independent guessing) | 1/4 | 1.0 | loses | ties |
+| one clue (unidirectional) | 1/2 | 2.0 | ties | wins |
+| both clues (bidirectional) | 1 | 4.0 | wins | wins |
+
+(Ignores failure risk and travel time — both only make stag attempts worse.)
+
+Consequences:
+- Quantitatively explains the observed phase boundary (2/3 seeds cooperate at hare = 1.0, 0/3 at hare = 2.0): at hare = 1.0 even zero-communication pouncing ties the hare, so cooperation bootstraps *without* language — matching the chance-level accuracy above. At hare = 2.0, cooperation only pays once communication is **bidirectional**, but no gradient reaches the channel before cooperation pays. Chicken-and-egg.
+- At default payoffs, unidirectional communication only *ties* the hare. For language to be strictly load-bearing: raise stag relative to hare, or enlarge the target space (8 stags drop the guessing EV to 0.5).
+
+### Evaluation of the five design questions (discussed 2026-07-26)
+
+1. **Channel too small (vocab 4, length 1)?** Not the current bottleneck: task needs 1 bit per direction, channel offers ~2 bits/step × 30 steps, and MI ≈ 0.001 shows the first bit was never used. Decision: scale the channel with task information content *later* (more stags / timing), not preemptively.
+2. **Expected return for collaboration** — computed above; EV reference lines to be added to plots.
+3. **Remove hares early** — accepted, best idea of the set. Phase 1 becomes a pure cooperative referential game (no defect option, no absorbing hare state); reintroduce hares later as an annealed phase 2. Note: hare is not "competition" (not zero-sum), it is an absorbing defect action that also destroys the partner's pending attempt.
+4. **Timing component (private hunt window)** — good pressure for state-dependent messages, deferred until a symbolic channel is causally active at all (phase 3+).
+5. **Better than commit window?** Yes for phase 1: **presence-based capture** (both agents standing on the stag cell captures it; no INTERACT/tick synchronization at all) plus **non-terminal wrong attempts**. Terminal failure was the deepest sampling bottleneck all along. Trial-and-error bypass is bounded: ~5–9 steps per attempt on the 7×7 grid, horizon 30 → ~3 attempts, and with hidden positions agents can't even coordinate the search order. The commit window remains the right mechanic for phase 2 where "waiting at the stag" is a meaningful risky signal.
+
+### Phase plan
+
+- **Phase 1 (now):** no hares, presence capture, 2×2 stags, with vs without `observe_other_position`. With positions visible, leader–follower solves it without symbols (correct stag is always in the leader's candidate pair → guaranteed within horizon) — that arm is the control. With positions hidden, the channel is the only way to beat chance targeting. Readout: first-presence targeting accuracy (chance 25% / unidirectional 50% / bidirectional 100%) and MI(clue; message), plus mute + random-message interventions ([[Stag Hunt Language Emergence - Experiment Design]] contract: never trust the mute control alone — input-distribution-shift false positive seen in `cw3s_hare10_seed1`).
+- **Phase 2:** reintroduce hares with annealed hare payoff (0 → 1 → 2) or warm-start from a cooperative phase-1 checkpoint; does the protocol survive risk-dominance?
+- **Phase 3:** more attributes/stags (channel scaled to match), timing window with asymmetric private information.
+
+### Code changes (2026-07-26)
+
+- `EnvConfig.capture_mode = "interact" | "presence"`; `n_hares = 0` now allowed (hare payoff-ordering check waived when hare-free); presence mode requires `commit_window = 0`.
+- Presence resolution: solo on hare captures it; both agents on correct stag = terminal joint capture; both on wrong stag = **non-terminal** (`failed_stag_reward` per step, 0 by default). INTERACT is a no-op (action space unchanged for model compatibility).
+- New diagnostics threaded through env → trainer metrics → `analyze_language.py`: `first_joint_presence` ("correct"/"wrong"), `wrong_presence_steps`, per-update and eval-time `first_presence_accuracy`.
+- New trainer flags: `--n-hares`, `--capture-mode`, `--hide-other-position`, `--horizon`.
+- Tests: 27 passing, incl. presence semantics, hare-free shapes, PettingZoo API in presence mode.
+
+### Runs launched
+
+Phase-1 pilots (queued sequentially, single-CPU node): `phase1_{obs,blind}_seed{0,1}` — no hares, presence capture, batch 64, 800 updates, message entropy 0.05, PPO, no shaping and no curriculum (the point is that the simplified game shouldn't need them). Artifacts in `stag-hunt-files/`. Early sanity check: a random policy samples joint captures at ~2–3% of episodes (vs 0.03% in the old terminal-INTERACT game, ~100×), first-presence accuracy at chance before learning — the redesign unblocks sampling as predicted.
+
+Same four runs also submitted as a Slurm job array (`sbatch_phase1.sh`, job 35380392, partition `kempner_h100`, account `kempner_bsabatini_lab`, `--array=0-3%4`), outputs `phase1_{obs,blind}_seed{0,1}_h100` — sbatch works fine from the interactive compute node, and Slurm jobs survive the session, unlike the detached queues that have died twice before. The interactive MIG copies were killed once the array was confirmed running; all four array tasks completed in ~38 min each.
+
+### Phase-1 pilot results (same day, 800 updates × 64 episodes, eval 500 episodes)
+
+| run | joint stag (eval) | first-presence accuracy | MI(clue; msg) | random-msg control |
+| --- | --- | --- | --- | --- |
+| obs seed 0 | 28.6% | **64%** | ~0.001 | no effect (63%) |
+| obs seed 1 | 21.2% | **46%** | ~0.002 | no effect (46%) |
+| blind seed 0 | 3.8% | 26.6% (chance) | ~0.0002 | no effect |
+| blind seed 1 | 7.4% | 26.4% (chance) | ~0.0004 | no effect |
+
+Readings:
+- **The phase-1 game works as designed.** Both obs seeds learn cooperation with zero shaping/curriculum (the old setup needed a commit window + two anneals + batch 128 and still failed 1/3 of seeds at hare=1.0). Sampling at random init is ~2–3% joint captures vs 0.03% before.
+- **Obs arm = movement protocol, quantified.** Accuracy 46–64% sits at/above the unidirectional (one-clue) signature of 50%, far above the 25% chance floor — the first demonstrated *information transfer* in this project, carried by leader-following. The symbolic channel stays causally inert (MI ≈ 0.001, random-message control null; seed 0's mute effect is the known input-distribution-shift artifact — random control is the decisive one).
+- **Blind arm = clean negative at 800 updates.** Both seeds at chance accuracy; they learn to *meet* more (joint rate 4–7% vs 2% at init — synchronization without targeting) but no bits flow, symbolic or otherwise. Still rising slowly at update 800.
+- Accuracy in the obs arm was still climbing at the end → longer runs may approach the bidirectional 100% regime; the blind arm likely needs substantially longer training and/or stronger channel pressure (higher message entropy for longer, larger batch, or warm-start from an obs checkpoint).
+
+### Why the channel doesn't bootstrap: credit dilution (evening discussion)
+
+Silence rate is flat at 18–22% in all four runs — exactly the 1/5 of a uniform 5-symbol head. The message policy never leaves its initialization: alive (entropy bonus) but shapeless. Three dilution mechanisms explain it:
+
+1. **Temporal**: a useful symbol at t≈2 pays off at capture t≈20+; its credit competes with the variance of all ~60 intervening decisions.
+2. **Repetition**: a symbol is emitted every step, so an episode's "utterance" is a ~30-symbol sequence (5³⁰ protocol space) and gradient smears over all of them. A Lewis game has 1 symbol, 1 response, immediate reward — we embedded that game in a sequential problem and divided per-symbol credit by ~30.
+3. **Two-sided deadlock**: speaker gradient is zero until the listener attends to messages; the listener has no reason to attend to uniform noise. Escape requires amplifying a triple coincidence (informative symbol + correct reaction + capture) — and only ~5% of blind episodes end in reward at all.
+
+The obs arm avoids all three because movement is a grounded, continuously-reinforced signal — the act *is* the message.
+
+Agreed levers (2026-07-26, user-selected options 1–3 of 4): sticky messages, talk-then-hunt phase, positive signaling/listening biases (Eccles et al. 2019 style); brute-force longer training as the control arm.
+
+Deferred ideas from user, revisit after the lever runs:
+- **Uncertainty-gated speaking** — agents talk only when internally uncertain; makes silence informative, but needs a calibrated uncertainty signal (phase 3).
+- **Message latency/decay** — a received symbol persists for a bounded window (e.g. 3–4 steps) instead of one step or forever: the natural sweep axis between the current channel and sticky, and re-enables meaningful message *sequences* once content gets richer. The cross-episode variant (message survives into later episodes) is misaligned with per-episode target resampling but becomes interesting with population training / per-partner memory.
+
+### Lever implementation (same day)
+
+- `EnvConfig.sticky_messages`: partner's most recent non-silent symbol persists in `received_message` (silence no longer overwrites) — collapses the protocol space toward one persistent utterance and removes the listener's memory burden.
+- `EnvConfig.talk_phase_steps=K`: first K steps freeze movement and capture resolution; only messages flow. Concentrates message credit at episode start.
+- Trainer `--signaling-coef`: differentiable batch estimate of MI(private clue; message policy) per speaker role, added to the objective; `--listening-coef`: L1 divergence between the move policy given real vs muted messages (extra BPTT forward), pushing listeners to attend. Both logged per update (`signaling_mi_bits`, `listening_l1`).
+- 31 tests passing.
+
+### Methodological catch #2: the rendezvous-convention loophole (2026-07-26, late)
+
+First-presence accuracy above 25% — even near 100% — does **not** by itself prove communication in the blind arm. Because the two clue-consistent candidate pairs intersect exactly at the correct stag, agents can learn complementary *rendezvous conventions* (e.g. one camps at a fixed color-indexed candidate in its region, the other sweeps its color pair): every joint presence is then automatically correct, no bits exchanged, up to ~50% capture rate with a dead channel. The 25/50/100 interpretation grid only applies to *camping* strategies. Verdicts must come from the intervention probes (random-message control especially — conventions are untouched by it, real protocols collapse) plus MI. Wave-1 live numbers (long: acc 40–60%; sticky seed 1: acc 92%, joint 45%) are consistent with either explanation until those probes run.
+
+### Runs launched: `stag-levers` array (job 35404344)
+
+Blind phase-1 game, 3000 updates × 64 episodes, 2 seeds per arm, `--array=0-7%4`: `phase1_blind_{long,sticky,talk5,aux}_seed{0,1}`. `long` is the pure sample-count control; `aux` uses signaling 0.1 + listening 0.1. Key comparison: if sticky/talk5/aux beat `long` on first-presence accuracy, the bottleneck is credit structure, not sample count.
