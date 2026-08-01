@@ -1377,3 +1377,65 @@ Replaced with scale-sensitive checks (wild-type pLDDT, wild-type ensemble
 spread), both of which move hugely and monotonically. General rule now recorded:
 *a diagnostic must be sensitive to the quantity the intervention changes* — and
 that has to be verified before the diagnostic is trusted, not after.
+
+---
+
+## 29. Denoising trajectory — inconclusive, and why
+
+`exp_trajectory.py`. The `AtomDiffusion2.sample` scan discards `ys` exactly like
+the Pairformer, so the trajectory is captured the same way (re-run the scan with
+`ys` populated, dynamics bit-identical). 200 steps, CA only, 24 variants per
+assay chosen as the 12 most and 12 least destabilising.
+
+**The raw divergence curve is uninformative.** Mean mutant-vs-WT CA RMSD tracks
+the noise schedule and nothing else: 2605 Å at σ=2560 down to 8.75 Å at
+σ=0.002 (RCRO); 2787 → 8.16 Å (RS15). That is the σ envelope, not the mutation.
+
+**The cross-run comparison is not properly paired.** A substitution changes the
+side chain, so the all-atom count differs between wild type and mutant (492 vs
+491 for RCRO). `shape = (*atom_mask.shape, 3)` therefore differs, so
+`jax.random.normal(shape=shape, key=k)` draws a **different noise realisation**
+even from an identical key. The two trajectories are independent samples, not a
+paired comparison. Corroborating sign: final mutant-vs-WT RMSD is 8.2–8.7 Å,
+whereas the ensemble runs put variant-vs-WT at TM ≈ 0.985 (~1 Å) — the gap is
+the unpaired noise.
+
+**The rank statistic across variants does not replicate.** Spearman(divergence,
+ΔG) at fixed step, which divides out the common σ:
+
+| | step 0 (σ 2560) | step 120 (σ 14) | final (σ 0.002) | peak |
+|---|---:|---:|---:|---:|
+| RCRO | +0.479 | +0.321 | **−0.538** | +0.608 (step 23) |
+| RS15 | +0.136 | +0.281 | +0.043 | +0.437 (step 34) |
+
+The two assays disagree in magnitude and, at the final step, in **sign**. With
+n = 24 the standard error on a Spearman is ≈ 0.21, so almost none of this is
+distinguishable from zero. The within-run convergence curves (each trajectory vs
+its own endpoint, which needs no cross-run pairing) disagree just as badly:
+ρ(convergence, ΔG) at step 160 is +0.483 for RCRO and +0.250 for RS15, and both
+collapse to ≈ 0 at the final step.
+
+**Confound checked and cleared, which makes it worse not better.** Substitutions
+to larger residues change the atom count *and* tend to destabilise, so atom count
+could have driven everything. It does not: ρ(Δatom count, ΔG) = +0.091 (RCRO) /
++0.606 (RS15), and partialling it out leaves the step-0 correlation essentially
+unchanged (+0.479 → +0.490 for RCRO). So the RCRO step-0 correlation at σ=2560
+is not an atom-count artefact — but it is also not interpretable, because at that
+noise level there is nothing for it to mean. That points at n=24 noise rather
+than signal.
+
+**Verdict: no conclusion drawn.** The experiment needs redesigning before it can
+answer "never grown" vs "grown then lost":
+
+1. **Pair the noise.** The comparison must use the same realisation. Either draw
+   noise once at a fixed maximum size and index it consistently, or — simpler
+   and assumption-free — add a **within-variant noise floor**: run each variant
+   twice with different keys and report mutant-vs-WT divergence *relative to*
+   same-variant-different-key divergence. Any claim needs that denominator.
+2. **n = 24 is far too small** for a rank statistic. 100+ variants per assay.
+3. **Report at matched σ**, not matched step index, if sampling-step counts ever
+   differ between runs.
+
+Cost of the corrected version is roughly 5× what was just spent, which is
+affordable but should not be spent until the pairing is fixed — an unpaired
+experiment at n=100 is still unpaired.
