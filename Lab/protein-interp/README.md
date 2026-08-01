@@ -4,11 +4,20 @@ Mechanistic interpretability of cofolding diffusion models — primarily Boltz-2
 
 ## Status
 
-Active. PWA-conservation analysis on GFP done (single protein); replicating on more proteins, then probing coevolution / contact-density correlates and a layer-3 intervention.
+Active. Rebuilt on the JAX/joltz reimplementation of Boltz-2 (2026-07-30
+onward), which makes exact causal interventions possible. Route decomposition
+and per-operation attribution replicated on two proteins; ProteinGym stability
+probe done on four assays; RSA (pairformer vs structure module) and the
+ensemble-spread test running. See `methods_pairformer_interp.md` for methods and
+`log/2026-07-30-jax-pairformer-harness.md` for the chronological record,
+including four conclusions that were withdrawn or corrected.
 
 ## Layout
 
 - `agenda.md` — current focus.
+- `methods_pairformer_interp.md` — **technical methods** for the Boltz-2 trunk
+  interpretability work: harness, units conventions, cohort construction,
+  every experiment with its controls, and the figure index.
 - `log/` — dated experiment logs.
 - `lit.md` — literature scoping.
 - `decisions.md` — running history of pivots, experiment lists, and parked ideas.
