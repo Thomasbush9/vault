@@ -70,14 +70,42 @@ absolute growth vs growth relative to a scrambled-sequence control; raw vs
 partial correlation; and a hand-rolled TM-score vs `tmtools`. The controls are
 now built into the scripts rather than applied afterwards.
 
-**2.3 Structure comparison is `tmtools` only.** A hand-rolled TM-score scored
-two Boltz-2 predictions of the *same* sequence at 0.697 where tmtools gives
-0.978, which produced two false conclusions (a spurious "sampler noise floor"
-and spurious mutant-vs-WT divergence). `harness/geom.py` now wraps
-`tmtools.tm_align` and carries the failure history in its docstring.
-Validation: self-comparison 1.000; shuffled-residue floor 0.155; JAX wild type
-vs the independent PyTorch Boltz-2 prediction of the same sequence 0.978
-(RMSD 1.10 Å).
+A fifth was wrong for a different reason — not a missing control but an
+unverified primitive (see 2.3). The distinction matters: a missing control
+makes a real number uninterpretable, while a broken primitive makes the number
+itself fiction, and no amount of downstream care recovers it.
+
+**2.3 All superposition goes through one self-testing module.** This one has
+now cost two separate rounds of false conclusions, so it is worth stating
+precisely.
+
+*First:* a hand-rolled TM-score scored two Boltz-2 predictions of the *same*
+sequence at 0.697 where tmtools gives 0.978, producing a spurious "sampler
+noise floor" and spurious mutant-vs-WT divergence. Fixed by wrapping
+`tmtools.tm_align`.
+
+*Second, after that was written up:* `exp_trajectory.py` defined its **own**
+`kabsch_rmsd` instead of importing one, with the rotation transposed
+(`R = U diag Vᵀ` where Kabsch gives `R = V diag Uᵀ`), so it applied the inverse
+rotation. It scored two structures **identical up to a rigid motion at
+12.68 Å instead of 0**. Every divergence and noise-floor value in the first
+corrected trajectory run was invalid; the run was redone.
+
+Both times the broken function returned numbers in the right units, with the
+right sign, ordered the way intuition expected. **Nothing about the output said
+"wrong."** Documenting the first failure did not prevent the second — only an
+executable check does.
+
+`harness/geom.py` is now the single copy of every superposition primitive,
+carries the failure history in its docstring, and calls `self_test()` **on
+import**, asserting three cases with known answers: a rigid motion must give
+exactly 0, a reflection must *not* (no improper rotations), a pure translation
+must give 0. Anything that superimposes imports from it.
+Validation against the reference implementation: self-comparison TM 1.000;
+shuffled-residue floor 0.155; JAX wild type vs the independent PyTorch Boltz-2
+prediction of the same sequence TM 0.978 (RMSD 1.10 Å); and
+`geom.kabsch_rmsd` agrees with `tmtools` RMSD to 3 decimals whenever TM-align
+aligns all residues (1.734 vs 1.734 Å on the GFP surface cohort).
 
 ---
 
