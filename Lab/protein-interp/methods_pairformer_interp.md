@@ -354,9 +354,24 @@ model = eqx.tree_at(lambda m: m.diffusion_conditioning, model,
                     is_leaf=lambda x: x is model.diffusion_conditioning)
 ```
 
-**Required diagnostic before believing any beta result:** confirm that the
-conditioning tensors actually differ across beta. If ‖Δq‖/‖q‖ is unchanged, the
-knob is not connected and the run is uninformative regardless of its outcome.
+**Correction — the diagnostic first prescribed here was itself wrong.** It said
+to check that ‖Δq‖/‖q_wt‖ changes across beta. That quantity is a *relative*
+difference, so a global scale cancels in it **exactly**: if both q_mut and q_wt
+are multiplied by beta, the ratio is unchanged by construction. Measured on the
+bias path it read 0.284703 / 0.284703 / 0.284704 / 0.284703 for beta =
+1 / 1.5 / 2 / 3 — flat, while the intervention was in fact working. (It also
+reads the *unscaled* conditioning, since `cond` is computed from the unwrapped
+model.) A scale-invariant statistic cannot detect a scale.
+
+**Use instead any quantity that is not scale-invariant:**
+
+- wild-type **pLDDT**: 0.858 → 0.798 → 0.736 → 0.569 across beta = 1 → 3;
+- wild-type **ensemble spread** (mean pairwise TM over K diffusion draws):
+  0.9900 → 0.8031 → 0.6139 → 0.3032.
+
+Both move monotonically and hugely, which is what "the knob is connected" looks
+like. The general rule: a diagnostic for an intervention must be sensitive to
+the thing the intervention changes — check that before trusting it, not after.
 
 ### 4.11 RSA — pairformer vs structure module *(running)*
 `exp_gym2.py`, `analyze_rsa.py`

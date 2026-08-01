@@ -1298,3 +1298,82 @@ source protein so folds are not duplicated. With the existing four that is
 **12 assays**. MSAs generating via the ProtForge container. This is the fix for
 the largest weakness in §20–22: effect sizes span 1.4×–6.0× across four assays
 and four is not enough to say whether that is fold-dependent or noise.
+
+---
+
+## 26. N = 12 — the main result holds and tightens
+
+Twelve Tsuboyama folding-stability assays, 250 variants each, Spearman on
+held-out **positions**, 5 position-grouped splits per assay = **60 assay-splits**.
+Identical rows for every predictor.
+
+| predictor | pooled mean ± sd |
+|---|---:|
+| **internal (linear over per-layer pair features)** | **+0.548 ± 0.169** |
+| pLDDT mean | +0.244 ± 0.200 |
+| TM to wild type | +0.214 ± 0.173 |
+| pLDDT at mutated residue | +0.037 ± 0.227 |
+| position-only baseline | +0.069 ± 0.186 |
+
+internal > TM-to-WT in **57/60** assay-splits; gap **+0.335**, 95 % paired
+bootstrap CI **[+0.288, +0.380]**. Per-assay internal ρ ranges **0.392–0.704**
+(mean 0.548) — far tighter across twelve proteins than the four-assay sample
+suggested, which was the main worry.
+
+Two changes from the N=4 numbers worth noting:
+
+- **pLDDT mean (+0.244) now slightly beats TM-to-WT (+0.214).** The model's
+  confidence is a marginally better stability readout than its own geometry.
+  Both remain less than half the internal state.
+- **Stop quoting the ratio.** It ranges 1.3× (NUSA) to 28.3× (PKN1), but PKN1's
+  TM correlation is 0.017, so the ratio is a near-zero denominator artefact. The
+  **gap** (+0.335, CI [+0.288, +0.380]) is the stable statistic and is what
+  should be reported.
+
+## 27. β on the bias path — the knob works, and the hypothesis is refuted
+
+RCRO, 120 variants × K=6 samples, β applied to the pair-derived attention biases.
+
+| β | WT ensemble spread | ρ(spread, ΔG) | ρ(TM to WT, ΔG) | ρ(pLDDT, ΔG) | WT pLDDT |
+|---:|---:|---:|---:|---:|---:|
+| 1.0 | 0.9900 | +0.161 | **+0.435** | +0.037 | 0.858 |
+| 1.5 | 0.8031 | +0.208 | +0.294 | +0.139 | 0.798 |
+| 2.0 | 0.6139 | +0.156 | +0.283 | +0.208 | 0.736 |
+| 3.0 | 0.3032 | −0.139 | +0.018 | **+0.299** | 0.569 |
+
+**The intervention is unambiguously connected**: wild-type ensemble spread goes
+from 0.990 to 0.303 in mean pairwise TM — the sampler is enormously widened.
+
+**But widening does not liberate the trunk's information.** ρ(TM to WT, ΔG)
+*degrades monotonically*, 0.435 → 0.018. The structural stability signal is
+destroyed, not released. Ensemble spread does not improve either (0.161 → 0.208
+→ 0.156 → −0.139).
+
+So the hypothesis that **the sampler's default narrowness is what hides the
+mutation** is **refuted** in the range tested. Widening the pairwise bias just
+adds noise to the geometry.
+
+One genuinely interesting counter-trend: **ρ(pLDDT, ΔG) rises monotonically with
+β** (0.037 → 0.299). As the sampler widens, the confidence head becomes a
+*better* stability readout — presumably because destabilising variants generate
+more disagreement among samples, which pLDDT registers. That is a usable
+observation in its own right, and it is the one thing β bought.
+
+*Caveat:* β = 1.5 already drops WT pLDDT from 0.858 to 0.798 and ensemble spread
+to 0.80, so the model is off-distribution quickly. A gentler grid (1.05, 1.1,
+1.2) could in principle show a peak before the degradation; the trend from 1.0
+is monotone down, so it is unlikely but untested.
+
+## 28. Correction to the β diagnostic in the methods
+
+The check prescribed in `methods_pairformer_interp.md` §4.13 — "confirm
+‖Δq‖/‖q_wt‖ changes across β" — is **wrong, and I wrote it into the pushed
+methods document**. ‖Δq‖/‖q_wt‖ is a relative difference, so a global scale
+cancels exactly; it read 0.284703 for every β while the intervention was
+working. It also reads the unscaled conditioning, since `cond` is computed from
+the unwrapped model.
+
+Replaced with scale-sensitive checks (wild-type pLDDT, wild-type ensemble
+spread), both of which move hugely and monotonically. General rule now recorded:
+*a diagnostic must be sensitive to the quantity the intervention changes* — and
+that has to be verified before the diagnostic is trusted, not after.
