@@ -1439,3 +1439,87 @@ answer "never grown" vs "grown then lost":
 Cost of the corrected version is roughly 5× what was just spent, which is
 affordable but should not be spent until the pairing is fixed — an unpaired
 experiment at n=100 is still unpaired.
+
+---
+
+## 2026-08-01 — trajectory, run twice; and a second superposition bug
+
+### The bug first, because it invalidated a whole run
+
+The corrected trajectory design (within-sequence noise floor, n=100) ran and
+returned a clean, plausible answer: divergence *below* the WT key-to-key floor
+at essentially every step, ratio 0.5–0.9, ρ(divergence, ΔG) never above 0.3.
+Every number was wrong.
+
+`exp_trajectory.py` had defined its **own** `kabsch_rmsd` instead of importing
+one, with the rotation transposed — `R = U diag Vᵀ` where Kabsch gives
+`R = V diag Uᵀ` — so it applied the inverse rotation. Tested on an input with a
+known answer it scored two structures **identical up to a rigid motion at
+12.68 Å instead of 0**. Both numerator and denominator were wrong in the same
+direction, which is precisely why the ratio looked stable.
+
+Caught by comparing `kabsch_rmsd` against `tmtools` on the GFP cohort, where
+they should agree when TM-align aligns all residues, and they did not.
+
+**This is the same mistake as the hand-rolled TM-score, made again after that
+one was documented in this very file.** The corrected floor is 0.3–0.7 Å where
+the broken one said 13.4 Å.
+
+Fix is structural, not local: `geom.py` is the single copy of every
+superposition primitive, `geom.self_test()` runs **on import** and asserts a
+rigid motion gives exactly 0, a reflection does not, a pure translation gives 0.
+`exp_trajectory.py` now imports it and also saves endpoint coordinates so
+re-analysis never needs the GPU again. Invalid files kept under
+`runs/_invalid/` with a note rather than deleted.
+
+**Generalisable lesson.** Both times the broken function returned numbers in the
+right units, with the right sign, ordered the way intuition expected. Nothing
+about the output said "wrong". Writing the lesson down did not prevent the
+repeat; only an executable check did.
+
+### The actual result (`runs/traj3_*.npz`, 3 assays × 100 variants)
+
+| assay | ratio σ>10 Å | ratio σ<1 Å | endpoint ρ | p |
+|---|---|---|---|---|
+| RCRO_LAMBD | 0.68 | **1.03** | **−0.380** | 1e−4 |
+| RS15_GEOSE | 0.63 | 0.86 | −0.060 | 0.55 |
+| NKX31_HUMAN | 0.62 | 0.53 | −0.003 | 0.98 |
+
+**Robust across all three:** during global fold determination (σ 2560 → ~1 Å,
+80 % of the schedule) the ratio is flat at ~0.6. The mutant's path is *closer*
+to the WT's than two WT runs are to each other. The conditioning difference does
+not steer the trajectory while the fold is being chosen.
+
+**Varies by protein:** below σ ≈ 1 Å the curves separate (1.08 / 0.89 / 0.52).
+A mutation-specific response exists but is confined to fine refinement, after
+the fold is committed.
+
+**Limits on the RCRO number, which must travel with it:** (1) ρ = −0.380 is
+in-sample over 100 variants, not held-out, so it is *not* comparable to the
+probe's 0.548; (2) endpoint divergence is essentially "structure differs from
+WT", i.e. a re-measurement of the TM readout (+0.214 pooled), not a new channel;
+(3) 1 of 3 is weak. Do **not** quote max-over-steps (0.435) — that is an argmax
+over 200 candidates on the reported quantity, the same select-on-test error
+already caught in the probe.
+
+**Effect on the account.** "The sampler discards it" is too strong. Better: the
+sampler is **insensitive to the conditioning while the global fold is chosen**,
+and becomes mutation-sensitive only during local refinement, by which point the
+fold is committed. Consistent with the β result (widening adds noise rather than
+releasing information) and with flat pLDDT-at-site.
+
+### Also landed
+
+- **Route decomposition across all 12 assays** (24 protein × variant obs):
+  median `z_direct` necessity 0.840, sufficiency 0.995; all MSA routes ≈ 0
+  (`msa_bcast` sufficiency 0.160 the only non-trivial competitor). The GFP
+  result is not a property of GFP. → `figures/routes12.png`
+- **Mechanism figure** from `runs/distomap_gfp.npz`: WT and mutant E[d] maps,
+  their difference, the symmetric-KL map, TM-aligned structure overlay, and the
+  64-bin histogram behind the worst single pair. GFP + 32 core mutations moves
+  individual pairs by up to **7.6 Å** in E[d] and 0.92 nats mean KL, and the two
+  structures still superimpose at **TM 0.935**. → `figures/mechanism.png`
+- Report renumbered contiguously (§2.1–2.6, §4.0–4.11) and rewritten per review:
+  probe input data and ρ formula stated explicitly, "assay-split" defined,
+  spatial-localisation measurement spelled out, RSA explained with a warning not
+  to compare its 0.138 against the probe's 0.548 (second- vs first-order).
