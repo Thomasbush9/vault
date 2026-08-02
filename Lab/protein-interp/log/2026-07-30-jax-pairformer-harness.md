@@ -2367,3 +2367,46 @@ Ways forward, none free:
    patching, which needs no shape match.
 
 (2) is cleaner and probably what the paper should do.
+
+---
+
+## 2026-08-02 — CORRECTION: mutant MSAs ARE near-identical to the wild type's
+
+Earlier today I wrote that re-searched mutant alignments differ substantially
+from the wild type's (Jaccard 0.05–0.89) and that "the old project assumption
+that mutant MSAs are near-subsets of the wild type's is wrong."
+
+**That was an artefact of how I measured overlap.** Measured properly:
+
+| RCRO variant | overlap by UniRef **ID** | overlap by **sequence string** |
+|---|---|---|
+| M10I | **0.983** | 0.646 |
+| L40P | **0.954** | 0.613 |
+| R2Q | **0.981** | 0.393 |
+
+By homolog identity the alignments are **95–98 % the same**. The old assumption
+holds, and it was always the physically sensible expectation: sequences differing
+by one residue do not have different evolutionary neighbourhoods.
+
+**The bug:** a3m marks insertions *relative to the query* in lowercase. A
+different query produces a different insertion pattern, so stripping lowercase
+and gaps yields a different string for the **same database sequence**. I was
+comparing an alignment-dependent representation and reading it as homolog
+identity. Query rows were verified correct (39/39), so it was not a mapping error
+— it was the wrong invariant.
+
+This is the fourth time this session that a statistic was read as answering a
+question it does not answer (sequence-length-as-MSA-depth twice, distogram
+entropy as correctness, and now alignment-encoded strings as homolog identity).
+
+### Consequence: the ablation runs after all
+
+Because the homolog sets are ~98 % identical, capping every alignment to a fixed
+row count (512) gives near-identical content **and identical shapes**, which is
+what route patching requires. The shape mismatch that blocked this earlier was
+caused by variable depth, not by genuinely different alignments — so the earlier
+conclusion that "the grafted alignment is a precondition of the method" is too
+strong. It is a precondition only that the alignments have the same shape, and
+with a fixed cap the real re-searched alignments satisfy it.
+
+Rerunning the route decomposition on real, per-variant alignments capped at 512.
