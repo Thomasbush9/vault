@@ -1899,3 +1899,63 @@ property of the architecture class, not of a checkpoint.
 - Still n = 1 protein. This replicates the **phenomenon**, not the causal
   localisation — the ProteinGym internal-vs-output comparison has not been run
   on OF3 or Protenix.
+
+---
+
+## 2026-08-02 — central claim across three diffusion models
+
+`exp_gym_multi.py` + `analyze_gym_multi.py` + `fig_gym_multi.py`.
+Figures in `prot_interp_files/figures_models/{boltz2,of3,protenix,aggregate}/`.
+
+4 assays × 100 variants, position-grouped splits, identical rows per predictor,
+alignments verified identical across models.
+
+| predictor | Boltz-2 | OpenFold3 | Protenix |
+|---|---|---|---|
+| internal (5 distogram features) | 0.404 | **0.491** | **0.518** |
+| TM to wild type | 0.344 | 0.251 | 0.291 |
+| pLDDT | 0.380 | 0.398 | 0.414 |
+| pLDDT at mutated site | 0.164 | 0.170 | 0.087 |
+| position-only baseline | 0.186 | 0.186 | 0.186 |
+
+Gap (internal − TM): Boltz-2 **+0.061 [−0.015, +0.138]**, OF3 **+0.240
+[+0.099, +0.381]**, Protenix **+0.227 [+0.135, +0.333]**.
+
+**The ordering holds in all three; the gap clears zero in two of three.** Boltz-2
+is the one that does not, which needs stating plainly rather than folding into
+an average.
+
+### Why Boltz-2 is weaker HERE than in its own headline
+
+Its full protocol gives +0.335 [+0.288, +0.380] (12 assays, 250 variants, 256
+per-layer features). On these *same 4 assays* that protocol gives internal 0.480
+vs TM 0.191.
+
+- internal 0.480 → 0.404 is explained: 5 final-trunk distogram features instead
+  of 256 per-layer ones. Per-layer capture needs model-specific plumbing, so the
+  cross-model version is necessarily weaker.
+- TM 0.191 → **0.344 is not explained**. Range expansion from the 100-variant
+  linspace pick is far too small (×1.03–×1.13). The remaining difference is the
+  mosaic wrapper's sampler settings (vanilla ODE, different step count) versus
+  the pi_core path. **Unresolved — do not assert a cause.**
+- pLDDT likewise jumps to 0.38–0.41 from 0.244 in the 12-assay run.
+
+If the sampler settings really do make TM a better stability readout, that is
+itself a finding worth chasing: it would mean the internal-vs-output gap depends
+on how the sampler is configured, which bears directly on the "how to improve
+them" question.
+
+### Scope of the cross-model replication
+
+**Replicated (measurement, computed from model outputs):** the phenomenon
+(distogram vs structure) and the internal-vs-output comparison.
+
+**Not replicated (intervention, Boltz-2 only):** route decomposition, per-sublayer
+attribution, L37–45 ablation, β sweep, σ-resolved trajectory, difference
+amplification, trunk–structure consistency. Each needs model-specific hybrid
+construction / pytree patching / sampler surgery — new code, not a rerun. The
+paper must say so.
+
+So what is closed today is: **the phenomenon and the internal-vs-output ordering
+generalise across three diffusion-sampler folding models.** The *causal
+localisation* remains Boltz-2-only.
