@@ -230,3 +230,89 @@ measurement* rather than a guess, which is a genuinely novel design argument.
 
 Items 1, 6, 7 are the cheap ones and close the three most obvious referee
 objections.
+
+
+---
+
+# Next steps, as of end of 2026-08-02
+
+Ordered by value per unit of effort, not by interest.
+
+## 1. Re-searched-MSA ablation — DATA ALREADY EXISTS, run it first
+
+`data/msa_real/` holds **39 genuinely re-searched alignments** (3 assays × 12
+variants + WTs), generated this morning and **never used**. They exist to close
+the one circularity in the route result: every experiment grafts the wild type's
+alignment, which *guarantees* the MSA routes cannot carry mutation-specific
+information, so "the mutation does not enter via the MSA" is partly true by
+construction.
+
+Rerun `exp_paths.py` on those variants with their own alignments. If `z_direct`
+still dominates, the criticism is answered in a paragraph. Cost: a few GPU-hours,
+zero new code. **This is the cheapest open item and it defends a headline claim.**
+
+## 2. Per-layer capture for OpenFold3 and Protenix
+
+The cross-model probe currently uses **5 final-trunk distogram features** against
+the Boltz-2 headline's **256 per-layer features**, which is why its numbers
+(0.405 / 0.487 / 0.519) are not comparable to 0.548 and why the caveat has to be
+repeated everywhere.
+
+All three models are `stacked_params` + `jax.lax.scan`, so per-layer capture is
+the same technique in each: re-run the scan with `ys` populated. Doing this makes
+the cross-model claim as strong as the Boltz-2 one and removes the awkwardest
+caveat in the paper. **Highest value per unit of effort.**
+
+## 3. AlphaFold2 with MSA support — the decisive experiment, and the biggest lift
+
+AF2 is the only available model whose decoder is **not** a diffusion sampler, so
+it is the one that separates "diffusion is at fault" from "the trunk→structure
+interface is at fault in general".
+
+Blocked: mosaic's wrapper asserts `not use_msa` and pins `max_msa_clusters = 1`.
+The vendored DeepMind featuriser (`alphafold/model/tf/data_transforms.py`:
+`sample_msa`, `nearest_neighbor_clusters`, `summarize_clusters`, `make_msa_feat`)
+is **TensorFlow**, and TF is not in the container.
+
+So it needs a numpy reimplementation of AF2's MSA featurisation: parse a3m →
+cluster features (49-dim `msa_feat`) → `extra_msa` → raise the cluster caps.
+Bounded and well specified, but it is real work — budget a day or two, and
+validate against a known AF2 prediction before trusting any number from it.
+
+**Do not attempt the single-sequence shortcut again.** It was tried on
+2026-08-02: OF3 and Protenix do not fold without alignments, and even Boltz-2 —
+which does fold correctly single-sequence — showed a gap that did not clear zero.
+It tests a regime nobody uses.
+
+## 4. Production settings — still asserted, still unmeasured
+
+The report says recycles = 3 and single-sample readout "understate the phenomenon
+rather than exaggerate it". That is a hypothesis. Today's sampling-steps result
+(TM rho 0.344 at 100 steps vs 0.256 at 200) proves the gap is **protocol-
+dependent**, which makes this more urgent than it looked: rerun at 15 recycles
+with confidence-ranked best-of-N on ≥4 assays.
+
+## 5. External ddG baseline
+
+One table row: is rho = 0.548 respectable or weak? Nothing else has been run on
+these assays under this protocol, so the comparative claim currently floats.
+
+## 6. "The MSA pins the decoder" — a lead, needs one clean experiment
+
+Removing the alignment turns Boltz-2's structural invariance into sensitivity
+(32 core mutations: TM 0.935 → 0.327), while its wild type still folds correctly
+(TM 0.973 to its MSA structure). If it survives, it explains *why* the decoder
+ignores the trunk — the alignment-derived prior dominates it.
+
+Needs: replicates (single-sequence sampling variability is large and unquantified
+— the dose curve is non-monotonic at 1–2 mutations), and a pLDDT floor so that
+"the structure changed" is not confounded with "the prediction failed" (pLDDT is
+0.382 at 32 mutations).
+
+## Parked
+
+- Interventions (routes, sublayers, ablation, β, trajectory) on OF3/Protenix —
+  each needs model-specific plumbing; only worth it once (2) shows the deep
+  probe replicates.
+- ESMFold as a second non-diffusion comparator — `esm.sif` exists; worth a look
+  only if (3) proves too slow.
