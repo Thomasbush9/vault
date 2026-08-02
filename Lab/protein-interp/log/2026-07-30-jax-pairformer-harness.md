@@ -2100,3 +2100,83 @@ predicted; and KL magnitudes are *lower* single-sequence (0.66–0.83 at 32 mut)
 than with an MSA (0.92–1.36), because a diffuse baseline moving is less
 surprising than a sharp one moving. The proper test is the ProteinGym
 internal-vs-output comparison, which has **not** been run single-sequence.
+
+---
+
+## 2026-08-02 — small-domain single-sequence run: the claim does NOT hold without an MSA
+
+Goal: rescue the AF2 comparison by running all four models single-sequence on
+the 61–72 aa Tsuboyama domains, where single-sequence folding might work.
+It does work — and the answer is negative.
+
+### The models do fold these domains without an alignment
+
+WT pLDDT (vs 0.29–0.35 on 238-aa GFP):
+
+| | NKX31 | PSAE | RCRO | RS15 |
+|---|---|---|---|---|
+| Boltz-2 | 0.873 | 0.727 | 0.847 | 0.879 |
+| Protenix | 0.806 | 0.485 | 0.693 | 0.817 |
+| AlphaFold2 | 0.764 | 0.434 | 0.670 | 0.862 |
+| OpenFold3 | 0.601 | 0.489 | 0.606 | 0.664 |
+
+So this is a usable regime, unlike GFP. PSAE is weakest everywhere.
+
+### The result: internal does NOT beat output for any model
+
+4 assays × 100 variants, 200 steps, position-grouped splits:
+
+| model | internal | TM to WT | gap | 95 % CI |
+|---|---|---|---|---|
+| Boltz-2 | 0.405 | 0.322 | +0.082 | [−0.014, +0.170] |
+| OpenFold3 | 0.163 | 0.100 | +0.064 | [−0.065, +0.220] |
+| AlphaFold2 | 0.252 | 0.208 | +0.044 | [−0.021, +0.110] |
+| **Protenix** | 0.316 | **0.374** | **−0.057** | [−0.123, +0.010] |
+
+**Not one CI excludes zero, and Protenix is negative** — TM beats internal.
+Against the SAME assays and protocol WITH an MSA: +0.149, +0.237, +0.233, all
+clearing zero.
+
+### So the claim is scoped to the MSA regime
+
+This is a genuine limit, not a nuisance. **The internal-over-output advantage we
+report requires the models to be run with alignments** — which is how they are
+used, so the claim is not vacuous, but it must be stated with that scope.
+
+Per-model behaviour differs and no single mechanism explains it: Boltz-2's
+internal score is unchanged (0.405 → 0.405) while its TM improves
+(0.256 → 0.322); OF3 loses both (0.487 → 0.163, 0.250 → 0.100); Protenix loses
+internal and gains TM.
+
+### A hypothesis of mine, rejected
+
+I had proposed "a degraded, noisier structure correlates better with ΔG" as a
+general mechanism, after the sampling-steps finding. Tested across all 28
+model × assay × mode cells: **ρ(WT pLDDT, ρ(TM,ΔG)) = +0.268, p = 0.169** — if
+anything the *better*-folded cells give the better structural readout, and it is
+not significant. **The mechanism does not generalise.** The sampling-steps result
+stands as a within-Boltz-2, single-factor demonstration; it should not be quoted
+as a law.
+
+### AF2 is still untested on the actual claim
+
+The only regime in which mosaic's AF2 wrapper can run is one where the claim
+fails for *every* model, including two where it demonstrably holds with an MSA.
+So this does not test AF2 — it tests the single-sequence regime.
+
+**There is no shortcut: AF2 needs MSA support added to the wrapper.** The
+diffusion-vs-decoder question stays open, and the small-domain workaround is now
+closed off rather than pending.
+
+### Analysis audit (done before this run)
+
+- Planted-signal / pure-noise check over 600 trials: planted +0.728, pure noise
+  **+0.006** (sd 0.210). No leakage; position-grouped splits are disjoint.
+  A single split has SE ≈ 0.21, which is why one draw of +0.30 on noise meant
+  nothing.
+- **Found and fixed:** the figure hardcoded ridge λ = 1.0 while the table tuned λ
+  on an inner position-grouped split. Both now call one `fit_internal()`. The
+  published table was the tuned one and is unchanged.
+- **Found and fixed:** `msa_depth` returned the sequence length whenever the
+  alignment had a single row (it reported 238 for a 238-aa protein). Third
+  instance of the same "identify the axis by size" bug.
