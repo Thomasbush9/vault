@@ -1673,3 +1673,30 @@ it already generates.
 The positive claim tightens too: if you want mutational effect out of a folding
 model, read ‖Δz‖ off the trunk. Everything else tried is worse or is a weaker
 correlate of it.
+
+
+### Correction (2026-08-02): do not compare ‖Δz‖ = 0.637 to the probe's 0.548
+
+The amplification figure originally drew a reference line at the 12-assay probe
+value (0.548) beside the ‖Δz‖ bar (0.637), implying ‖Δz‖ beats the probe. **It
+does not, and the comparison is invalid** for three independent reasons:
+
+1. **Different assay set.** 0.548 is 12 assays. ‖Δz‖ is 3. The probe on *those
+   three* averages **0.506** (NKX31 0.490, RCRO 0.634, RS15 0.392).
+2. **Different protocol.** The probe is a fitted model scored on held-out
+   *positions*. ‖Δz‖ is a single unfitted feature scored on all rows.
+3. **Range expansion.** The 60 variants are picked by `np.linspace` over
+   ΔG-sorted rows, which raises the ΔG spread above the full assay's —
+   sd ratios **1.047 / 1.123 / 1.219**. Correlations on range-expanded samples
+   are systematically inflated.
+
+What *is* supported: within the amplification experiment all readouts are the
+same 60 variants under the same protocol, so **‖Δz‖ beats every decoded
+structure there** (0.637 vs 0.508 amplified, 0.396 permuted control, 0.190
+ordinary). The reference line has been removed from the figure and the caveat
+added to the report.
+
+The general lesson, which is the same one as entries 5/9 and the norm-matched
+control: **a number is only comparable to another number computed the same way
+on the same sample.** Three of this project's errors are now variations of
+putting two incomparable quantities side by side.
