@@ -2003,3 +2003,56 @@ The size of the internal-vs-output gap **depends on how well the structure modul
 is run** — under-sampling narrows it for the wrong reason. Every comparison of
 this kind must state its sampling settings. It also poses a question for the
 improvement work: does *better* sampling widen the gap further?
+
+---
+
+## 2026-08-02 — behavioural anchor across models; AF2 blocked
+
+### The anchor replicates in all three diffusion models
+
+GFP dose series (1→32 core mutations, random loads, scramble), full alignment,
+read as structure / confidence / internal. → `figures_models/aggregate/anchor_msa.png`
+
+| model | WT pLDDT | 1 mut (TM / KL) | 32 core (TM / KL) |
+|---|---|---|---|
+| Boltz-2 | 0.947 | 0.976 / 0.032 | 0.935 / 0.921 |
+| OpenFold3 | 0.906 | 0.980 / 0.045 | 0.926 / 1.361 |
+| Protenix | 0.943 | 0.997 / 0.018 | 0.946 / 0.956 |
+
+Same shape in all three: from 1 to 32 mutations the **internal divergence rises
+~30–50×** while **TM falls ~0.04** and pLDDT ~0.12. The structural curve only
+breaks at the scramble (TM 0.18–0.31).
+
+### AF2 could not be compared — and this is a real blocker
+
+mosaic's AF2 wrapper is **single-sequence only**: `target_only_features` asserts
+`not use_msa`, config pins `max_msa_clusters = 1`. So AF2 can only be compared
+with the others' alignments removed too. In that regime, **three of four never
+fold the wild type**:
+
+| single-sequence | WT pLDDT |
+|---|---|
+| Boltz-2 | 0.934 (retains single-sequence capability) |
+| OpenFold3 | 0.311 |
+| Protenix | 0.349 |
+| AlphaFold2 | 0.289 |
+
+With the WT unfolded, the TM curves are distances between two unreliable
+predictions. **Nothing in that arm supports any claim about AF2.** The figure is
+retitled to say exactly that rather than carrying the anchor headline.
+
+This matters because AF2 was the model we most wanted: the only available one
+whose structure module is *not* a diffusion sampler, i.e. the one that would
+separate "diffusion is at fault" from "the trunk→structure interface is at fault
+in general". **That question stays open.**
+
+Two routes to it:
+1. a **small domain** where single-sequence folding works — AF2 reached pLDDT
+   0.64 on a 63-residue Tsuboyama protein vs 0.29 on 238-residue GFP, so the
+   ProteinGym panel is the natural target (all models single-sequence, matched);
+2. **add MSA support** to the AF2 wrapper, which is the better long-term fix and
+   would let AF2 join the main comparison rather than a degraded one.
+
+Route 1 is cheap and could run tomorrow. Note it would still be a
+single-sequence comparison, i.e. a different operating point from every other
+result in the report — worth having, but must be labelled.
