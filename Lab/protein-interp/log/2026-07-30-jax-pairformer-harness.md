@@ -1523,3 +1523,71 @@ releasing information) and with flat pLDDT-at-site.
   probe input data and ρ formula stated explicitly, "assay-split" defined,
   spatial-localisation measurement spelled out, RSA explained with a warning not
   to compare its 0.138 against the probe's 0.548 (second- vs first-order).
+
+---
+
+## 2026-08-01 (later) — difference amplification: GAIN hypothesis not supported
+
+`exp_amplify.py`, 3 assays × 60 variants, γ ∈ {0,1,2,4,8}, diffusion key held
+fixed across γ. Scales only `(mut − wt)` in the trunk state, decodes with the
+mutant's features. → `figures/amplify.png`
+
+### The apparent result
+
+ρ(TM-to-WT, ΔG) pooled: **0.190 (γ=1) → 0.508 (γ=8)**. A large gain, close to
+the Pairformer probe's 0.548. Sanity checks pass: γ=0 (mutant atoms, WT trunk
+state) gives −0.006, and γ=1 reproduces the known TM-to-WT baseline (0.190 vs
+0.214 on 12 assays).
+
+### The control kills it
+
+The norm-matched permuted control — variant *i* gets variant *j*'s difference
+vector rescaled to ‖Δz_i‖ — reaches **0.396**, i.e. **78 % of the effect**, with
+the *wrong direction* entirely.
+
+Direction-specific gap, pooled bootstrap over variants:
+**+0.110, 95 % CI [−0.027, +0.252], P(>0) = 0.946.** The CI includes zero.
+
+### Why the control is not information-free — the design flaw worth recording
+
+I norm-matched to remove magnitude as a confound. But **magnitude *is* the
+signal**: ‖Δz‖ on its own predicts ΔG at ρ = −0.56 / −0.74 / −0.61 (mean 0.637).
+So rescaling to ‖Δz_i‖ preserved the most informative feature and removed only
+direction. Confirmed by the chain: ρ(TM_perm@8, ‖Δz‖) = −0.53…−0.74, i.e. the
+permuted structures' displacement tracks ‖Δz‖ nearly as well as the true ones do.
+
+**A control that holds a quantity fixed is only a control if that quantity is
+not itself the signal.** Mine isolated direction, which is a legitimate and
+useful comparison — but it is not the "is this mutation-specific?" test I set
+out to run, and the first version of `analyze_amplify.py` printed
+"mutation-specific" on an arbitrary `gap > 0.10` rule. Threshold removed;
+the script now reports the bootstrap CI and states plainly when it spans zero.
+
+### What amplification actually does
+
+It converts the **magnitude** of the trunk's response into structural
+displacement, so TM-to-WT becomes a lossy proxy for ‖Δz‖. It is not a fix:
+
+| readout | ρ with ΔG | cost |
+|---|---|---|
+| TM to WT, ordinary (γ=1) | +0.190 | — |
+| TM to WT, perm control (γ=8) | +0.396 | wrong direction |
+| TM to WT, amplified (γ=8) | +0.508 | TM 0.87, RMSD ~2 Å, pLDDT −0.02 |
+| **‖Δz‖ straight off the trunk** | **+0.637** | **no decoding at all** |
+
+Reading the perturbation norm off the trunk beats every decoded structure, needs
+no sampling, and does not push the model 8× out of distribution.
+
+### Verdict and consequence
+
+**GAIN is not supported; the evidence points to STRUCTURAL.** The trunk's
+*directional* information — which specific structural change it implies — remains
+largely unexpressed even at 8× amplification. Scaling is the wrong lever.
+
+Next rung is therefore §3.2 of `publication_plan.md` (distogram rescoring: sample
+N, rerank by likelihood under the *mutant's own* distogram) and then §3.3
+(distogram guidance), not more scaling.
+
+Caveats to carry: n = 60 per assay, 3 assays, 100 sampling steps. The +0.110 gap
+is consistent in sign and size across all three (0.107 / 0.118 / 0.096), which is
+suggestive; it is not established.

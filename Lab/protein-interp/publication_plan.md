@@ -144,7 +144,21 @@ the schedule. Two live explanations, which call for different fixes:
 - **STRUCTURAL** — the decoder's early steps run on a prior that does not read
   that component at all.
 
-### 3.1 Difference amplification — *running now*
+### 3.1 Difference amplification — **DONE, negative** (2026-08-01)
+
+**Result: GAIN not supported.** rho(TM, dG) rises 0.190 -> 0.508 at gamma=8, but
+the norm-matched control reaches 0.396 — 78 % of the effect with the wrong
+direction. Direction-specific gap +0.110, 95 % CI [−0.027, +0.252]. And ‖Δz‖ read
+straight off the trunk gives 0.637, beating every decoded structure while needing
+no sampling. Amplification converts perturbation *magnitude* into structural
+displacement; the trunk's *directional* content stays unexpressed even at 8×.
+
+The control also taught a lesson worth keeping: norm-matching does not neutralise
+a confound when the norm *is* the signal. Details in the log.
+
+**Consequence: go to §3.2, not to larger gamma.**
+
+<details><summary>Original design (kept for the record)</summary>
 `exp_amplify.py`. Scale only the mutant-minus-wild-type difference in the trunk
 state and decode from it:
 
@@ -172,7 +186,9 @@ that bigger perturbations give bigger structural changes.
 **Readout:** ρ(TM-to-WT, ΔG) and ρ(pLDDT, ΔG) per gamma, per condition.
 Baseline at gamma = 1 should reproduce ≈ 0.214.
 
-### 3.2 Distogram rescoring — training-free, do next
+</details>
+
+### 3.2 Distogram rescoring — training-free, **now the top priority**
 We have shown the mutant's distogram moves a lot (0.92 nats mean KL, individual
 pairs by 7.6 Å) while the structure does not. So: sample N structures, score each
 by its likelihood under the **mutant's own** distogram, rerank.
