@@ -2248,3 +2248,49 @@ Worth pursuing properly, with replicates and a confidence floor, because if it
 survives it reconnects the mechanism to the MSA in a way the route decomposition
 alone did not — not "the mutation enters via the MSA" (it does not) but "the MSA
 is what pins the decoder".
+
+---
+
+## 2026-08-02 — end-of-day claim audit
+
+Checked every headline claim against today's work, including my own two
+retractions.
+
+| claim | status | note |
+|---|---|---|
+| 1. Pairformer represents mutational effect, rho = 0.548 held-out, 12 assays | **safe** | untouched today |
+| 2. Model's own outputs represent it far less; gap +0.335, 57/60 splits | **safe** | must now state sampling settings (200 steps) — the gap is protocol-dependent |
+| 3. Loss is downstream of the conditioning, in the sampler; not dispersion | **safe** | Boltz-2 only, as labelled |
+| 3a. Sampler insensitive during global fold determination | **safe** | Boltz-2 only, as labelled |
+| 4. Not one model's quirk — OF3 and Protenix replicate | **safe** | phenomenon + gap (+0.149/+0.237/+0.233) both hold with MSAs |
+
+### One genuine new caveat
+
+Boltz-2 single-sequence is **not** a broken regime — it folds GFP correctly
+(TM 0.973 to its own MSA structure). And there the internal-over-output gap is
+**+0.082, 95 % CI [−0.014, +0.170]**, i.e. does not clear zero.
+
+That is not a refutation — n = 20 splits, wide CI, positive point estimate — but
+it means we cannot claim the effect is regime-independent. It is demonstrated
+**where these models are actually used, with alignments**. For OF3/Protenix the
+single-sequence arm carries no information either way, because their
+single-sequence baseline is wrong (TM 0.29 to their own MSA structures).
+
+### Retractions and where they landed
+
+- **"a degraded structure correlates better with dG" as a general mechanism** —
+  had reached `report/results.html`. Rejected across 28 cells
+  (rho = +0.268, p = 0.17). **Now scoped in the report** to the within-Boltz-2
+  single-factor demonstration, with the withdrawal stated in place.
+- **"Boltz-2's pLDDT is miscalibrated"** — never reached the report; corrected in
+  this log. Checked by grep.
+
+### Still open, and correctly labelled as such
+
+- AF2 (the non-diffusion comparator): blocked — needs MSA support in the wrapper,
+  and the vendored DeepMind featurisation requires TensorFlow, absent from the
+  container. No shortcut; the small-domain workaround is closed off.
+- All intervention experiments remain Boltz-2 only.
+- "The MSA is what pins the decoder": promising but preliminary — confounded by
+  prediction failure at high mutation load (pLDDT 0.382), non-monotonic, no
+  replicates.
