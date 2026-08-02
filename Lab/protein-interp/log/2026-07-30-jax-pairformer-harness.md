@@ -1591,3 +1591,85 @@ N, rerank by likelihood under the *mutant's own* distogram) and then §3.3
 Caveats to carry: n = 60 per assay, 3 assays, 100 sampling steps. The +0.110 gap
 is consistent in sign and size across all three (0.107 / 0.118 / 0.096), which is
 suggestive; it is not established.
+
+---
+
+## 2026-08-02 — trunk-structure consistency: also negative. Three fixes now ruled out.
+
+`exp_consistency.py`, 3 assays × 60 variants, K=8 samples per variant.
+Scores the decoded structure under the trunk's own distogram:
+`c_own = mean_ij log P_mut(d_ij)`, pairs with |i−j| ≥ 3.
+
+### It does not work, and the reason is instructive
+
+Raw ρ(c_own, ΔG) = **−0.525**, which looks promising. It is almost entirely
+distogram **sharpness**, not trunk-structure disagreement:
+
+| | NKX31 | RCRO | RS15 | mean |
+|---|---|---|---|---|
+| ρ(entropy H, c_own) | +0.810 | +0.920 | +0.930 | **+0.887** |
+| ρ(c_own, ΔG) raw | −0.607 | −0.550 | −0.416 | −0.525 |
+| ρ(c_own, ΔG) **partialling H** | −0.433 | **−0.006** | −0.187 | **−0.209** |
+
+`c_own` is 81–93 % determined by entropy. The mechanism is the *opposite* of what
+I anticipated when writing the controls: I expected a broad distogram to lower
+log-likelihood for everything. In fact a **sharp** distogram is unforgiving — it
+punishes the inevitable sub-Ångström structural error severely, while a broad one
+assigns moderate probability everywhere. Stable variants have sharp distograms
+and therefore score *worse*. After partialling entropy the effect is −0.209 and
+inconsistent (one assay at −0.006).
+
+Note also that `c_own − c_wtdist` (−0.563) does **not** fix this. I had reasoned
+that scoring the same structure under two distograms cancels structure quality —
+true — but it does not cancel entropy, because the two distograms have different
+entropies. Only the rank-partial is clean.
+
+### Reranking: not established
+
+Best-of-8 by consistency vs the mean of 8, ρ(TM-to-WT, ΔG):
+
+| | benefit | 95 % CI |
+|---|---|---|
+| NKX31 | +0.310 | [+0.017, +0.598] |
+| RCRO | +0.156 | [−0.069, +0.390] |
+| RS15 | **−0.203** | [−0.477, +0.060] |
+| **pooled** | **+0.088** | **[−0.062, +0.240]**, P(>0) = 0.873 |
+
+Sign flips across assays. Within a variant the entropy is constant across the K
+samples, so *this* comparison is not entropy-confounded — the reranking result is
+clean and simply null.
+
+### Distogram entropy is a real readout but NOT an independent one
+
+ρ(H, ΔG) = **0.483** — better than TM-to-WT (0.214) and pLDDT-at-site (0.037).
+But H and ‖Δz‖ correlate at 0.58–0.70, and partialling shows H is subsumed:
+
+| | mean partial |
+|---|---|
+| ρ(H, ΔG) given ‖Δz‖ | **−0.13** |
+| ρ(‖Δz‖, ΔG) given H | **−0.49** |
+
+So there is one trunk readout, not two. **‖Δz‖ is it.**
+
+### Standing scoreboard — training-free readouts
+
+| readout | ρ with ΔG | where it lives |
+|---|---|---|
+| **‖Δz‖, trunk pair-state shift** | **0.637** | trunk, no decoding |
+| distogram entropy | 0.483 | trunk (subsumed by ‖Δz‖) |
+| TM to wild type | 0.214 | decoded structure |
+| consistency, entropy-partialled | 0.209 | both (inconsistent) |
+| pLDDT at the mutated residue | 0.037 | confidence head |
+
+### Consequence for the paper
+
+**Three candidate fixes now tested, all negative:** sampler under-dispersion (β),
+insufficient gain (amplification), and trunk-structure consistency + reranking.
+§7 of `paper_outline.md` becomes "three explanations ruled out", which hardens the
+structural account considerably — the decoder's insensitivity is not a matter of
+scale, not a matter of sampler width, and not a matter of selection among samples
+it already generates.
+
+The positive claim tightens too: if you want mutational effect out of a folding
+model, read ‖Δz‖ off the trunk. Everything else tried is worse or is a weaker
+correlate of it.

@@ -188,7 +188,13 @@ Baseline at gamma = 1 should reproduce ≈ 0.214.
 
 </details>
 
-### 3.2 Distogram rescoring — training-free, **now the top priority**
+### 3.2 Distogram rescoring — **DONE, negative** (2026-08-02)
+
+Consistency is 81–93 % entropy; partialled it is −0.209 and inconsistent.
+Reranking +0.088, CI [−0.062, +0.240], sign flips across assays. Details in the
+log. **Next lever is §3.3 (guidance), or accept the structural account.**
+
+<details><summary>Original design</summary>
 We have shown the mutant's distogram moves a lot (0.92 nats mean KL, individual
 pairs by 7.6 Å) while the structure does not. So: sample N structures, score each
 by its likelihood under the **mutant's own** distogram, rerank.
@@ -198,6 +204,8 @@ Cleanly diagnostic either way:
   but does not *select* it. A decode-time fix, no retraining, immediately usable.
 - reranking recovers nothing → the sampler never generates it, and guidance is
   required (§3.3).
+
+</details>
 
 ### 3.3 Distogram guidance — the actual fix if 3.2 fails
 Add ∇ log p(distogram | coords) to the score function during sampling, weighted

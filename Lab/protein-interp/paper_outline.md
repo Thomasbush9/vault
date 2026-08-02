@@ -154,7 +154,7 @@ which point the fold is committed.
 Report the noise floor honestly: 4 WT keys, 6 pairs, and the endpoint correlation
 significant in only 1 of 3 assays. Do **not** quote max-over-steps.
 
-### 7. Two explanations ruled out (Fig 5)
+### 7. Three explanations ruled out (Fig 5)
 **Under-dispersion.** Boltz-sample shows the default sampler under-explores what
 the pair representation supports. Scaling the pair-derived attention biases
 widens the ensemble enormously (WT spread 0.990 → 0.303 mean pairwise TM) but
@@ -169,8 +169,17 @@ into structural displacement; the trunk's *directional* content stays
 unexpressed. And ‖Δz‖ read straight off the trunk (0.637) beats every decoded
 structure while requiring no sampling.
 
-This section is where the paper earns trust: two plausible fixes, both tested,
-both negative, both with the control that kills them stated in full.
+**Trunk-structure consistency.** Scoring the decoded structure under the trunk's
+own distogram gives ρ = −0.525 raw, but 81–93 % of that is distogram *sharpness*
+rather than disagreement (a sharp distogram punishes sub-Ångström error; a broad
+one does not). Entropy-partialled it is −0.209 and inconsistent across assays.
+Reranking 8 samples by consistency gives +0.088, 95 % CI [−0.062, +0.240], with
+the sign flipping across the three assays.
+
+This section is where the paper earns trust: three plausible fixes, all tested,
+all negative, each with the control that kills it stated in full. The decoder's
+insensitivity is not a matter of sampler width, not of scale, and not of
+selection among samples it already generates.
 
 ### 8. Confrontation between models — **now in scope**
 
@@ -227,7 +236,8 @@ so explicitly rather than implying a fuller comparison than was run.
   actively misleading about what it encodes.
 - **For practice:** if you want mutational effect from a folding model, read the
   trunk, not the structure and not pLDDT. ‖Δz‖ alone gives 0.637 with no
-  sampling.
+  sampling. Distogram entropy gives 0.483 but is subsumed by ‖Δz‖ (partial
+  −0.13), so there is **one** readout to report, not a menu.
 - **For architecture:** the trunk→decoder interface is the failure point, and the
   failure is specific to global fold determination. A decoder that consulted the
   distogram during high-σ steps is the natural next design.
