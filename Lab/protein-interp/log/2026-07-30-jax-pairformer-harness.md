@@ -2056,3 +2056,47 @@ Two routes to it:
 Route 1 is cheap and could run tomorrow. Note it would still be a
 single-sequence comparison, i.e. a different operating point from every other
 result in the report — worth having, but must be labelled.
+
+### Why is single-sequence confidence so low? (checked, it is real)
+
+Three independent lines say the low pLDDT is genuine, not a malformed input:
+
+1. **The input is correct.** Single-sequence featurisation yields 1–2 alignment
+   rows as it should. (My `msa_depth` readout printed "238" for Boltz-2 — the
+   sequence length. The heuristic filtered axes of size 1, so with a single MSA
+   row it picked the token axis. Same class of bug as the earlier Boltz-2 "63".
+   Fixed by identifying the row axis by elimination instead of by "largest".)
+2. **A second instrument agrees.** WT distogram entropy rises from 0.53–0.81
+   nats (MSA) to **1.89–2.02 nats** (single-sequence) in all four models, against
+   a ceiling of ln(64) = 4.16. The trunks really are far less certain.
+3. **It is the expected regime.** GFP is 238 aa; single-sequence folding at that
+   length is known to be poor, and pLDDT ≈ 0.3 is a characteristic failure value.
+
+### Boltz-2's confidence is miscalibrated single-sequence — worth keeping
+
+| single-sequence | WT pLDDT | WT disto entropy | TM(1 mut, WT) |
+|---|---|---|---|
+| Boltz-2 | **0.934** | 1.895 | 0.727 |
+| OpenFold3 | 0.311 | 1.894 | 0.629 |
+| Protenix | 0.349 | 1.899 | 0.692 |
+| AlphaFold2 | 0.289 | 2.024 | 0.650 |
+
+Boltz-2's distogram is **just as diffuse** as models that report failure, and its
+structures are **not** stable (TM(1 mut, WT) falls 0.976 → 0.727), yet its pLDDT
+stays at 0.93. Its confidence head disagrees with its own trunk. This is direct
+support for the report's line that pLDDT is a poor readout of what the model
+knows — here it is not merely uninformative but actively wrong.
+
+### Does the internal readout still work when the structure fails?
+
+KL against the wild type stays **monotonic in mutation load** for 3 of 4 models
+(Protenix inverts once at 8 mutations), including AF2, which never folds GFP:
+0.027 → 0.660 from 1 to 32 mutations. So the trunk still grades the perturbation
+when the decoder has failed.
+
+**But this does not show the internal readout is "better" here**, and two things
+forbid that reading: the GFP dose series has **no ΔG**, so nothing is being
+predicted; and KL magnitudes are *lower* single-sequence (0.66–0.83 at 32 mut)
+than with an MSA (0.92–1.36), because a diffuse baseline moving is less
+surprising than a sharp one moving. The proper test is the ProteinGym
+internal-vs-output comparison, which has **not** been run single-sequence.
