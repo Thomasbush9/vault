@@ -30,6 +30,10 @@ up, which is why every geometric primitive now self-tests on import.
 ## Layout
 
 - `agenda.md` — current focus.
+- `paper_outline.md` — **the paper, reframed around the mechanism**: title,
+  abstract draft, section-by-section outline with figures, and an explicit list
+  of claims we cannot make. The MSA is demoted from hypothesis to a ruled-out
+  explanation.
 - `publication_plan.md` — **what this needs to be publishable**: the framing
   redirection, blocking referee objections, the cross-model plan (OF3/Protenix
   weights are already on disk), and the intervention ladder.
