@@ -1758,3 +1758,83 @@ cross-model figure leans on KL ordering rather than absolute nats. n = 1 protein
 one cohort design. The ProteinGym internal-vs-output comparison has **not** been
 run on OF3 yet — that is the next piece, and it is the one that carries the
 paper's central claim.
+
+---
+
+## 2026-08-02 (later still) — uniform model layer: works, but ONE BLOCKING BUG
+
+Goal: dedicated extractor per model, one analysis layer for all. Tested
+Boltz-2 / OpenFold3 / Protenix through a single code path (`pi_models.py`,
+`multi_smoke.py`).
+
+### mosaic already has the uniform layer
+
+`StructurePredictionModel` gives every model the same two calls
+(`target_only_features` → `model_output`), returning a `StructureModelOutput`
+with normalised `distogram_logits`, `distogram_bins`, `plddt`,
+`backbone_coordinates`, `atom37_coords`. Wrappers exist for af2, boltz1, boltz2,
+esmfold2, of3, protenix, proteina.
+
+**The bespoke `exp_distomap_of3.py` written earlier duplicated work this layer
+already does** — the a3m basename filter, the unconditional template stage, and
+the per-atom vs per-token pLDDT difference are all handled inside it. Worth
+remembering before writing the next extractor.
+
+Loader shapes differ and are not guessable, so `pi_models.BUILDERS` records them:
+`Boltz2()` and `OF3()` are classes; `protenix.load_model()` returns the
+**low-level protenij module, not the mosaic wrapper** (both are named `Protenix`
+— an easy hour to lose); the wrapper is `Protenix(protenix=..., default_sample_steps=...)`.
+
+### All three run. The grids do NOT match.
+
+| model | N | bins | grid (A) | width | pLDDT |
+|---|---|---|---|---|---|
+| Boltz-2 | 63 | 64 | 2.156 – 21.844 | 0.3125 | 0.849 |
+| OpenFold3 | 63 | 64 | 2.156 – 21.844 | 0.3125 | 0.789 |
+| Protenix | 63 | 64 | **2.312 – 21.688** | **0.3075** | 0.953 |
+
+Boltz-2 and OF3 share a grid exactly; **Protenix does not**. The smoke test
+flags this automatically rather than leaving it to be noticed later. Within a
+model, KL against its own wild type is exactly valid; *across* models, absolute
+E[d] and nats carry a grid-convention difference and only orderings and ratios
+should be compared.
+
+Also: the mosaic Boltz-2 wrapper reports `distogram_bins` as `linspace(2,22,64)`,
+which is **not** Boltz-2's actual centres (2.15625…21.84375, width 0.3125).
+Using it would have shifted new E[d] values by up to ~0.16 A relative to every
+Boltz-2 number already reported. `pi_models.BIN_OVERRIDE` pins the correct grid
+and says why.
+
+pLDDT spans 0.789–0.953 for the *same protein* — the models are calibrated very
+differently, which is another reason the cross-model figure must compare patterns
+rather than absolute values.
+
+### BLOCKING: only Boltz-2 honours `msa_path`
+
+`TargetChain.msa_path` is documented as "read this instead of querying
+api.colabfold.com". Grepping the wrappers:
+
+    boltz2.py:53   elif chain.msa_path is not None:      <- honoured
+    of3.py         (no match)                            <- IGNORED
+    protenix.py    (no match)                            <- IGNORED
+
+Confirmed in the run logs: OF3 printed "Submitting 1 sequences to the Colabfold
+MSA server" and Protenix "Msa server is running… Files downloaded". So through
+the uniform layer, **the three models would be run on three different
+alignments**, silently, while appearing controlled. `of3._compute_msas` has no
+skip-if-exists path — `preprocess_colabfold_msas` always submits.
+
+This would have quietly destroyed the cross-model comparison: alignment depth
+and composition are exactly the variable the grafted-MSA design exists to hold
+fixed. It also makes runs network-dependent and non-reproducible.
+
+**Note the irony:** the bespoke `exp_distomap_of3.py` got this *right* — it
+copied our a3m in as `colabfold_main.a3m` — so the already-published OF3 GFP
+result stands. It is the *uniform* path that is unsafe.
+
+### Fix before launching anything
+
+Per-model adapters in `pi_models.py` that inject `chain.msa_path` into the query
+set and bypass the server, then a verification that all three models see an
+alignment with identical depth and identical first row. Only then launch the
+full campaign.
