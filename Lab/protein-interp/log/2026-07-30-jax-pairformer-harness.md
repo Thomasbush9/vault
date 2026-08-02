@@ -2180,3 +2180,71 @@ closed off rather than pending.
 - **Found and fixed:** `msa_depth` returned the sequence length whenever the
   alignment had a single row (it reported 238 for a 238-aa protein). Third
   instance of the same "identify the axis by size" bug.
+
+---
+
+## 2026-08-02 — CORRECTION: Boltz-2's pLDDT is not miscalibrated. It is right.
+
+Earlier today I wrote that Boltz-2's confidence head "disagrees with its own
+trunk" and was miscalibrated single-sequence, on the grounds that its distogram
+entropy (1.895) matched OF3 (1.894) and Protenix (1.899) while its pLDDT stayed
+at 0.93 against their 0.31/0.35. **That was wrong.**
+
+The test I should have run: compare each model's single-sequence structure to its
+OWN MSA structure for the same sequence — the MSA prediction being the reference
+answer.
+
+| GFP wild type | pLDDT ss | pLDDT MSA | TM(ss, MSA) |
+|---|---|---|---|
+| Boltz-2 | 0.934 | 0.947 | **0.973** |
+| OpenFold3 | 0.311 | 0.906 | 0.290 |
+| Protenix | 0.349 | 0.943 | 0.293 |
+
+**Boltz-2 genuinely folds GFP without an alignment.** Its single-sequence
+structure is essentially identical to its MSA structure. OF3 and Protenix
+genuinely fail. Every model's pLDDT is honest, and across 12 model × assay cells
+on the small domains, **rho(pLDDT, actual accuracy) = +0.692**.
+
+**Why my inference failed:** distogram entropy measures *spread*, not
+*correctness*. All three trunks are diffuse without an MSA; only Boltz-2's mode
+is still in the right place. Equal entropy therefore says nothing about which
+model is right, and I treated it as if it did. Another instance of reading one
+statistic as though it answered a question it cannot.
+
+### So: why are OF3/Protenix confidence values low?
+
+Because they are correct to be. Both fail to fold without an alignment; their
+confidence heads report that accurately. There is no bug and nothing to fix —
+the models differ in genuine single-sequence capability, with Boltz-2 clearly
+ahead (plausibly MSA-dropout style training augmentation, though we have not
+verified the cause and should not assert it).
+
+### The interesting consequence: the MSA is what pins the structure
+
+Boltz-2's WT is correct single-sequence (TM 0.973), so its dose curve is
+interpretable — unlike OF3/Protenix, whose single-sequence baseline is already
+broken:
+
+| Boltz-2, TM to WT | 1 | 2 | 4 | 8 | 16 | 32 core mutations |
+|---|---|---|---|---|---|---|
+| with MSA | 0.976 | 0.989 | 0.986 | 0.952 | 0.932 | **0.935** |
+| single-sequence | 0.727 | 0.945 | 0.950 | 0.870 | 0.680 | **0.327** |
+
+With an alignment, 32 buried mutations barely move the structure. Without one,
+they destroy it. **This suggests the alignment is what makes the output
+invariant** — the mutation signal is in the pair representation either way (the
+route result), but with an MSA the decoder has a prior strong enough to override
+it.
+
+**Two caveats that stop this being a finished result:**
+1. At 32 mutations single-sequence, pLDDT is **0.382** — the model has largely
+   failed there, so "the structure changed" cannot be cleanly separated from
+   "the prediction broke down".
+2. The dose curve is non-monotonic at the start (0.727 → 0.945 from 1 to 2
+   mutations), so single-sequence sampling variability is substantial and we
+   have no replicates to quantify it.
+
+Worth pursuing properly, with replicates and a confidence floor, because if it
+survives it reconnects the mechanism to the MSA in a way the route decomposition
+alone did not — not "the mutation enters via the MSA" (it does not) but "the MSA
+is what pins the decoder".
