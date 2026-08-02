@@ -1838,3 +1838,64 @@ Per-model adapters in `pi_models.py` that inject `chain.msa_path` into the query
 set and bypass the server, then a verification that all three models see an
 alignment with identical depth and identical first row. Only then launch the
 full campaign.
+
+---
+
+## 2026-08-02 — alignment control fixed; three models, one extractor, one schema
+
+### The fix
+
+`pi_models.features_for()` injects our a3m the way each pipeline demands:
+Boltz-2 via `msa_path`, OF3 via a file named **`colabfold_main.a3m`** (its parser
+silently skips any other basename), Protenix via a directory holding
+`pairing.a3m` / `non_pairing.a3m`.
+
+Passing the path is not proof it was used, so `pi_models.block_network()`
+replaces every MSA-server entry point with a raise. A model that fell back now
+**fails loudly** instead of substituting an alignment we did not choose.
+
+Verified (`msa_control_test.py`): nothing reached the server, and every depth
+derives from our file — a3m 827 rows; Boltz-2 759, OF3 828 (827 + query),
+Protenix 772. Row counts differ through each pipeline's own dedup/cap, which is
+unavoidable and is not a different alignment. **Depth equality was the wrong
+criterion** and the first version of the test asserted it; corrected.
+
+(The first depth readout said Boltz-2 = 63, which is the sequence *length*, not
+the depth — reading the wrong axis returns a plausible-looking number. Fixed by
+identifying the row axis by elimination against the token count.)
+
+### One extractor, one schema
+
+`exp_distomap_multi.py --model {boltz2,of3,protenix,af2}` replaces the per-model
+scripts and writes the same npz schema, so `fig_mechanism.py` and
+`fig_crossmodel.py` run unchanged on any model. `fig_crossmodel` now takes N
+models and reports whether their distogram grids agree.
+
+### Result — GFP, identical sequences and alignments
+
+| cohort | mean sym. KL (B2/OF3/PX) | TM to WT | pLDDT |
+|---|---|---|---|
+| 32 core | 0.93 / 1.36 / 0.96 | **0.935 / 0.925 / 0.945** | 0.82 / 0.80 / 0.83 |
+| 32 surface | 0.23 / 0.30 / 0.15 | 0.970 / 0.987 / 0.986 | 0.93 / 0.91 / 0.93 |
+| scramble | 6.38 / 8.75 / 5.74 | **0.297 / 0.182 / 0.305** | 0.28 / 0.32 / 0.28 |
+
+Core:surface ratio of belief change: **4.08 / 4.51 / 6.29**.
+
+All three: ~1 nat of belief movement from 32 buried mutations with the structure
+held at TM 0.93–0.95, and a scrambled sequence moving both. The phenomenon is a
+property of the architecture class, not of a checkpoint.
+
+### Caveats carried into the paper
+
+- **Protenix uses a different distogram grid** (2.31–21.69, width 0.3075) from
+  Boltz-2/OF3 (2.16–21.84, width 0.3125). Within a model KL is exact; across
+  models only orderings and ratios are meaningful. The figure states this.
+- The mosaic Boltz-2 wrapper misreports its own bin centres as
+  `linspace(2,22,64)`; `BIN_OVERRIDE` pins the true grid so new E[d] agrees with
+  previously reported Boltz-2 numbers.
+- OF3 numbers here differ slightly from the earlier bespoke run (KL 1.36 vs
+  1.30) because the mosaic wrapper switches OF3 to a vanilla ODE sampler. Same
+  phenomenon; the unified numbers are the comparable set.
+- Still n = 1 protein. This replicates the **phenomenon**, not the causal
+  localisation — the ProteinGym internal-vs-output comparison has not been run
+  on OF3 or Protenix.
