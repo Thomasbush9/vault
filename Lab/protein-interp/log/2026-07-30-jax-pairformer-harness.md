@@ -2294,3 +2294,76 @@ single-sequence baseline is wrong (TM 0.29 to their own MSA structures).
 - "The MSA is what pins the decoder": promising but preliminary — confounded by
   prediction failure at high mutation load (pLDDT 0.382), non-monotonic, no
   replicates.
+
+---
+
+## 2026-08-02 (late) — steps 1 and 2
+
+### Step 2: per-layer capture for OF3 and Protenix — DONE and verified
+
+`pi_capture.py`. Both models build their Pairformer as stacked params + scan, so
+capture is the same trick; the work is reproducing each trunk faithfully up to
+the final recycling cycle.
+
+| | drift vs trunk | one-mutation signal | ratio |
+|---|---|---|---|
+| OpenFold3 (48 layers) | 4.74e-04 | 3.40e-01 | **716x** |
+| Protenix (16 layers) | 5.34e-04 | 4.01e-01 | **750x** |
+
+**Bit-identity is not achievable here and that is not a bug.** Both models wrap
+their scan body in `jax.checkpoint` inside a `fori_loop`; reproducing that fusion
+exactly *while extracting intermediates* is not possible. Diagnostic: the model
+is bit-deterministic (rel err 0.0 against itself), yet a loop built from the
+model's **own** `_trunk_iteration` still shows ~6e-04 — rolled-vs-unrolled XLA
+numerics in float32, not a different computation. Boltz-2's capture is exactly
+0.0 only because `pi_core.iteration` *is* the model's code path.
+
+So the criterion became **signal-to-drift**, which is the question that actually
+matters, and it earned its keep immediately: my first Protenix capture had drift
+**0.217** — on the same scale as the signal (ratio 2x). Three real errors, each
+individually fatal and none visible by inspection:
+* `z = msa_module(...)` is an **assignment**, not `z = z + msa_module(...)`;
+* the Pairformer key is `fold_in(key, 1)`, not the cycle key;
+* each cycle consumes one element of `split(key, recycling_steps)`, so
+  `recycle()` cannot supply the first n-1 cycles — it would split the key into
+  n-1 pieces rather than take the first n-1 of n.
+
+A tolerance loose enough to accept OF3's honest 6e-04 would have passed all
+three. Ratio-to-signal would not.
+
+### Step 1: MSA ablation — BLOCKED, and structurally so
+
+First, the alignments genuinely differ. Re-searching each variant gives Jaccard
+overlap with the wild type's homolog set of **0.05–0.89** (RS15 `S1W`: 0.052 —
+one mutation returns an almost entirely different alignment), thousands of
+unique homologs per variant, and depths varying by ±10 %. **The old project
+assumption that mutant MSAs are near-subsets of the wild type's is wrong.** That
+makes the ablation more important, not less.
+
+But it cannot be run with the current method:
+
+    ValueError: MSA shapes differ ((1, 2043, 63, 33) vs (1, 2048, 63, 33));
+    patching rows requires the two runs to share an alignment.
+
+Route decomposition works by **swapping MSA-derived tensors between the wild-type
+and mutant runs**. Two runs with genuinely different alignments have different
+tensor shapes, so there is nothing to swap. Capping the a3m files to a common
+row count does not fix it — Boltz-2 dedups internally and the post-dedup depths
+still differ (2043 vs 2048, 1841 vs 1806).
+
+**So the grafted alignment is a precondition of the route method, not a
+convenience.** The circularity in the route claim cannot be discharged by
+re-searching alignments while keeping this method. That is a sharper statement
+of the limitation than the report currently makes, and it should replace the
+"must run before submission" note, which promised something impossible.
+
+Ways forward, none free:
+1. truncate each pair to the common minimum depth before patching — each variant
+   keeps its **own** homologs, only the count is matched. Small change to
+   `pi_paths.build_hybrid`, and defensible, but it is no longer the untouched
+   alignment.
+2. answer the circularity with a different experiment entirely — e.g. compare the
+   magnitude of internal change under real vs grafted alignments with no
+   patching, which needs no shape match.
+
+(2) is cleaner and probably what the paper should do.
