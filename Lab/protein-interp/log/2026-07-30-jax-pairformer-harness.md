@@ -1959,3 +1959,47 @@ paper must say so.
 So what is closed today is: **the phenomenon and the internal-vs-output ordering
 generalise across three diffusion-sampler folding models.** The *causal
 localisation* remains Boltz-2-only.
+
+---
+
+## 2026-08-02 — TM discrepancy resolved: it was sampling steps
+
+The first cross-model batch showed Boltz-2's internal-vs-output gap at +0.061
+with a CI including zero, while OF3 and Protenix cleared it. Resolved: **that
+batch ran at 100 sampling steps; every other Boltz-2 result runs at 200.**
+
+### Two hypotheses tested and rejected first
+
+1. **Variant selection.** `exp_gym2` picks 250 variants with `rng.choice`;
+   `exp_gym_multi` picks 100 by `linspace` over ΔG-sorted rows. Tested on the
+   ORIGINAL coordinates — same structures, same TM values, only the selection
+   changed — and it accounts for **+0.018**, not the ~+0.12 needed. (I had
+   dismissed this on sd ratios, then revived it on a density argument; both
+   readings were wrong and the direct test settles it.)
+2. **Wrapper sampler settings.** The mosaic OF3 wrapper switches to a vanilla
+   ODE sampler; the **Boltz-2 wrapper does not touch the sampler at all**.
+
+### The actual cause
+
+Matched variants through both pipelines showed materially different structures:
+TM(old, new) = 0.967 / 0.662 / 0.928 / 0.755, and mean TM-to-WT ~0.99 (200 steps)
+vs 0.67–0.97 (100 steps). **A degraded, noisier structure correlates better with
+ΔG**, inflating the baseline the trunk is compared against.
+
+At 200 steps, all four assays, all three models:
+
+| | internal | TM to WT | gap | 95 % CI | wins |
+|---|---|---|---|---|---|
+| Boltz-2 | 0.405 | 0.256 | **+0.149** | [+0.083, +0.211] | 17/20 |
+| OpenFold3 | 0.487 | 0.250 | **+0.237** | [+0.098, +0.373] | 16/20 |
+| Protenix | 0.519 | 0.286 | **+0.233** | [+0.143, +0.339] | 18/20 |
+
+Boltz-2's TM moved 0.344 → 0.256; its internal score did not move (0.404 →
+0.405). **Only the structural baseline changed.** The claim now holds in 3/3.
+
+### Keep as a result, not just a fix
+
+The size of the internal-vs-output gap **depends on how well the structure module
+is run** — under-sampling narrows it for the wrong reason. Every comparison of
+this kind must state its sampling settings. It also poses a question for the
+improvement work: does *better* sampling widen the gap further?
