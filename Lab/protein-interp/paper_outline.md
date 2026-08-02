@@ -61,9 +61,25 @@ present, addressable, and discarded at a specific, identifiable stage.
 | **3** | `n12_beta.png` + `gym_summary.png` | the internal-vs-output gap, 60 assay-splits |
 | **4** | `trajectory.png` | where it is lost — σ-resolved sampler insensitivity |
 | **5** | `amplify.png` | not a gain problem |
+| **6** | *to build* | cross-model: the internal-vs-output gap in Boltz-2, OF3, Protenix, AF2 |
 | S1 | `toy_units.png` | why KL not Ångström (methods) |
 | S2 | `sublayers_gfp.png`, `matrix_*.png` | per-operation attribution (n=2, mark as such) |
 | S3 | `bench_gfp.png`, `depth_gfp_core32.png` | GFP behavioural anchor, MSA-depth series |
+
+---
+
+## Structure (agreed 2026-08-02)
+
+Four parts, in this order:
+
+1. **Motivation** — the phenomenon and why the standard reading is wrong
+2. **Mechanism explained + consequences** — the causal core of the paper
+3. **Confrontation between models** — is this Boltz-2, or is it the architecture?
+4. **RSA and corrections** — supporting analyses and withdrawn conclusions
+
+The MSA result is included **for completeness, not as the subject**: one
+paragraph in part 2 ruling out the alignment-retrieval explanation, plus the
+re-searched-alignment replication that removes its circularity.
 
 ---
 
@@ -120,9 +136,9 @@ and it is near zero; (c) **pLDDT at the mutated residue is the worst predictor i
 the set**, which is counterintuitive and worth its own sentence — localising
 confidence to the substituted site makes it *worse* than the chain average.
 
-RSA as the second, assumption-light view: Pairformer 0.138 > distogram 0.023 >
-structure 0.000, 4/4 assays; mean variant-to-variant TM 0.96–0.99. Say explicitly
-that RSA values are second-order and **not comparable to ρ = 0.548**.
+(RSA is the assumption-light second view of this claim, but it now lives in
+part 4 with the corrections — see §10 — because it is supporting rather than
+load-bearing.)
 
 ### 6. Where it is lost (Fig 4)
 Conditioning still carries it (‖Δq‖/‖q‖ = 0.285). Coordinates do not. Then the
@@ -156,7 +172,56 @@ structure while requiring no sampling.
 This section is where the paper earns trust: two plausible fixes, both tested,
 both negative, both with the control that kills them stated in full.
 
-### 8. Discussion
+### 8. Confrontation between models — **now in scope**
+
+The single question: **is the loss a property of Boltz-2, of diffusion decoders,
+or of the trunk-to-structure interface in general?** Four models, and the lineup
+is chosen so the answer is forced rather than suggested.
+
+| model | decoder | why it is in the set |
+|---|---|---|
+| Boltz-2 (`joltz`) | diffusion | the model everything above was measured on |
+| OpenFold3 (`jopenfold3`) | diffusion | independent AF3-class implementation |
+| Protenix (`protenix`) | diffusion | second independent AF3-class implementation |
+| **AlphaFold2** (`mosaic.alphafold`) | **IPA regression, deterministic** | **the decisive contrast — no sampler at all** |
+
+The three diffusion models test **replication**. AF2 tests **mechanism**, because
+it is the only one whose decoder is not a sampler:
+
+- signal lost in **all four** → the failure is the trunk→structure interface in
+  general, not diffusion. The biggest version of the claim.
+- signal lost in the **three diffusion models but preserved in AF2** → diffusion
+  sampling is specifically at fault. Sharper, and directly actionable.
+
+**Feasibility is settled, not speculative** (checked 2026-08-02):
+
+- `OpenFold3.load()` is torch-free; `of3.eqx` + `of3.skeleton.pkl` are on disk.
+  Its structure is `embed_inputs` → `recycle` → `pairformer_stack`, and
+  `PairFormerStack` holds `stacked_params` scanned with `jax.lax.scan` — the same
+  construction as joltz, so per-layer capture, `eqx.tree_at` ablation and route
+  patching port by renaming attributes.
+- `protenix_mini_default_v0.5.0.eqx` is on disk with a `protenij.py` scan-based
+  stack.
+- **AF2 is available after all.** `mosaic.alphafold` vendors DeepMind's own
+  JAX/haiku implementation (`modules.py`, `folding.py`, `config.py`), and
+  `weights/alphafold/params/params_model_1_ptm.npz` loads with 338 param groups.
+  The `evoformer_iteration` parameters carry a **leading dimension of 48** —
+  haiku's `layer_stack` scans over the 48 blocks exactly as joltz scans over 64 —
+  and both `distogram_head` and `structure_module` are present. So the
+  "trunk believes X, structure says Y" comparison ports directly.
+  *(An earlier note in this file said AF2 needed external setup. It does not.)*
+
+**Minimum viable comparison per model** — not the full mechanistic battery:
+
+1. the phenomenon: TM-to-wild-type across variants
+2. does the trunk represent the mutation? (probe rho on per-layer pair features)
+3. does the output? (TM rho, pLDDT rho, pLDDT-at-site rho)
+4. the gap, on identical variants and identical position-grouped splits
+
+Routes and per-operation attribution stay Boltz-2-only unless time permits; say
+so explicitly rather than implying a fuller comparison than was run.
+
+### 9. Discussion
 - **For interpretability:** structural invariance is not representational
   invariance. Output-level probing of a scientific foundation model can be
   actively misleading about what it encodes.
@@ -170,7 +235,19 @@ both negative, both with the control that kills them stated in full.
   folding stability only; recycles = 3; grafted alignments; per-operation
   attribution on 2 proteins.
 
-### 9. Corrections appendix — **keep it**
+### 10. RSA and corrections
+
+Grouped deliberately: both are *supporting* material that makes the main claims
+more credible without carrying them.
+
+**RSA** — the assumption-light second view of part 2. Pairformer 0.138 >
+distogram 0.023 > structure 0.000, 4/4 assays; mean variant-to-variant TM
+0.96–0.99. State plainly that these are second-order quantities after three
+partials and are **not comparable** to rho = 0.548; what carries the result is
+the ordering and its consistency, plus the blunt fact that every variant is
+predicted to within TM 0.96 of every other.
+
+**Corrections** — **keep it**
 Nine withdrawn conclusions with diagnoses, including two independent hand-rolled
 superposition failures — the second made after the first was documented, which is
 why every geometric primitive now self-tests on import. In a field where
@@ -205,9 +282,12 @@ Ranked, from `publication_plan.md`:
    structural account hardens. Either way it is worth running.
 3. **Production settings** (§1.3) — 15 recycles, best-of-N.
 4. **External ddG reference** (§1.4) — one table row.
-5. **OF3 + Protenix replication** (§2) — turns a Boltz-2 finding into an
-   architecture-class finding. Weights and JAX ports are already on disk.
+5. **Cross-model section** (§8) — now **in scope for this paper**, not follow-up.
+   OF3 + Protenix (cheap, harness ports by renaming) and **AF2** (the decisive
+   non-diffusion contrast; `mosaic.alphafold` + params confirmed present
+   2026-08-02). This is the long pole and should start now.
 6. Per-operation attribution to 12 assays (§1.5) — or explicitly demote to
    supplementary and label n = 2.
 
-1–4 are days. 5 is the one that most changes how the paper is received.
+1–4 are days. **5 is the long pole and the one that most changes how the paper
+is received** — start it in parallel rather than after.
