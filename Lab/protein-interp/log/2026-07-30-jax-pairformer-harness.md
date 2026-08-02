@@ -1700,3 +1700,61 @@ The general lesson, which is the same one as entries 5/9 and the norm-matched
 control: **a number is only comparable to another number computed the same way
 on the same sample.** Three of this project's errors are now variations of
 putting two incomparable quantities side by side.
+
+---
+
+## 2026-08-02 (later) — OpenFold3: the phenomenon replicates
+
+First cross-model result. `exp_distomap_of3.py` + `fig_crossmodel.py`.
+Figures in `prot_interp_files/figures_of3/`.
+
+### Porting notes (both cost a run; record them)
+
+1. **MSA file naming.** `parse_msas_direct` silently **skips** any alignment
+   whose basename is not a key of `msa.max_seq_counts` — no warning, it returns
+   an empty dict and the pipeline dies much later with an unrelated
+   `IndexError` in `parse_msas`. Our colabfold output must be presented as
+   `colabfold_main.a3m`.
+2. **Templates are unconditional.** `InferenceDataset.create_all_features`
+   always calls the template stage, and with no template alignment it crashes in
+   `create_template_restype` (`vectorize` on size-0). `n_templates = 0` does not
+   help — it produces exactly the empty arrays that crash. Overridden with an
+   explicit empty template block (one slot, all masks zero). Boltz-2 runs carry
+   no templates either, so the comparison stays fair.
+
+Also: OF3 exposes pLDDT as **logits over bins, per ATOM**, not per token as in
+Boltz-2 — expectation over bin centres on [0,1], then indexed at the
+representative atom. And the distogram head is a bare linear layer carrying no
+bin metadata, so `n_bins` is recorded at runtime and E[d] is refused unless the
+grid matches. It came back **64 bins**, the same grid as Boltz-2, so nats and
+Angstrom are directly comparable here.
+
+### Result
+
+Identical sequences, identical alignments, no templates in either model.
+
+| cohort | mean sym. KL | TM to WT | pLDDT |
+|---|---|---|---|
+| | Boltz-2 / OF3 | Boltz-2 / OF3 | Boltz-2 / OF3 |
+| 32 core | 0.92 / 1.30 | **0.935 / 0.932** | 0.825 / 0.801 |
+| 32 surface | 0.23 / 0.33 | 0.970 / 0.980 | 0.934 / 0.908 |
+| scramble | 6.38 / 8.57 | **0.287 / 0.233** | 0.290 / 0.309 |
+
+1. **Belief moves, structure does not** — in both models. 32 buried mutations
+   move pairwise beliefs by ~1 nat, individual pairs by 6–8 Å of expected
+   distance, and the structures still superimpose at TM 0.93.
+2. **The scramble control works in both.** A genuinely different sequence moves
+   the structure decisively (TM 0.23–0.29), so structural invariance is specific
+   to mutation rather than general insensitivity.
+3. **The core:surface ratio of belief change is 4.08 (Boltz-2) vs 3.98 (OF3).**
+   Two independently trained models agreeing to two significant figures is the
+   strongest single indication so far that this belongs to the architecture
+   class, not to a checkpoint.
+
+**Caveats.** OF3's absolute KL is ~40 % higher than Boltz-2's in *every* cohort
+including the scramble — a difference in distogram sharpness, not in mutation
+sensitivity, which is why the *ratio* is the quantity to trust and why the
+cross-model figure leans on KL ordering rather than absolute nats. n = 1 protein,
+one cohort design. The ProteinGym internal-vs-output comparison has **not** been
+run on OF3 yet — that is the next piece, and it is the one that carries the
+paper's central claim.
