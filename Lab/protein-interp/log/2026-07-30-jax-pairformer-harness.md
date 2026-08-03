@@ -2464,3 +2464,61 @@ otherwise) stands, but the magnitudes do not.
 
 Also: 3 assays / 36 obs here vs 12 assays / 24 obs for the grafted reference —
 different protein sets.
+
+### Depth-matched control (both capped 512, same 3 assays)
+
+| route | REAL nec | REAL suf | GRAFTED nec | GRAFTED suf |
+|---|---|---|---|---|
+| `z_direct` | +0.511 | +0.963 | +0.924 | +1.024 |
+| `msa_bcast` | −0.040 | +0.182 | −0.030 | +0.077 |
+| `msa_query` | +0.008 | +0.033 | +0.002 | +0.013 |
+| **`msa_prior`** | **+0.073** | **+0.440** | **+0.000** | **+0.000** |
+
+**`msa_prior` = 0.000 exactly, at matched depth.** So the zero was never a depth
+artefact — it is construction, as suspected. The finding stands.
+
+### And an unexpected one: grafting INFLATES the internal effect
+
+| | median ‖D(M) − D(WT)‖ |
+|---|---|
+| real per-variant alignments | 0.0245 A (n=36) |
+| grafted wild-type alignment | 0.0634 A (n=6) |
+| **ratio** | **0.39x** |
+
+Grafting makes the mutation's internal effect **~2.6x larger**. The mechanism is
+straightforward in hindsight: a grafted alignment puts a mutated query row
+against homolog rows that still encode the wild type, so the model sees a
+query/alignment *conflict*. A re-searched alignment shifts its homologs slightly
+toward the mutant, partially absorbing the substitution, and the net perturbation
+is smaller.
+
+Caveat: n=6 grafted (2 variants x 3 assays, destab/neutral) vs n=36 real (12
+linspace-picked variants), so the variant sets are not identical. The direction
+is clear; the exact ratio is not.
+
+### What this means for the rest of the project
+
+**Every experiment used grafted alignments** — `exp_gym2` (the headline probe),
+`exp_gym_multi`, `exp_trajectory`, `exp_ensemble`, `exp_amplify`,
+`exp_consistency`, and the GFP cohort via `build_dataset.write_a3m`. Grafting is
+therefore a scope condition on the whole project, not a footnote on the route
+experiment.
+
+Consequences, by claim:
+
+* **Route decomposition** — genuinely revised. `z_direct` dominant survives
+  (suf 0.963); "MSA routes carry nothing" holds ONLY for grafted alignments.
+* **Internal-vs-output probe (rho 0.548 vs 0.214)** — still supported *as
+  measured*. It is a paired comparison: both predictors are computed from the
+  same runs under the same alignment condition, so grafting cannot bias one side
+  against the other. Untested under real alignments.
+* **The phenomenon (belief moves, structure does not)** — safe, and if anything
+  **conservative**: grafting inflates the internal perturbation 2.6x, so with
+  real alignments the internal signal is smaller while the structure is no more
+  mobile. The gap between them does not close.
+* **Sampler results (trajectory, beta, amplification, consistency)** — valid as
+  measured; magnitudes are on the inflated (grafted) scale.
+
+Nothing here overturns the internal-vs-output claim. What it does is put a
+scope line under the whole report: **magnitudes are measured against a grafted
+alignment and are ~2.6x larger than a user would see.**
