@@ -2522,3 +2522,50 @@ Consequences, by claim:
 Nothing here overturns the internal-vs-output claim. What it does is put a
 scope line under the whole report: **magnitudes are measured against a grafted
 alignment and are ~2.6x larger than a user would see.**
+
+---
+
+## 2026-08-02 (night) — deep cross-model probe: the last caveat is closed
+
+`exp_gym_deep.py` + `analyze_gym_deep.py` + `fig_gym_deep.py`. OF3 and Protenix
+now use the SAME internal feature construction as the Boltz-2 headline: four
+quantities (`kl_glob`, `kl_site`, `dz_site`, `ds_site`) at **every** Pairformer
+layer, obtained by capturing the scan intermediates and applying each model's own
+distogram head as a logit lens.
+
+Same 4 assays, position-grouped splits, identical rows per predictor:
+
+| predictor | Boltz-2 (64L, 256f) | OpenFold3 (48L, 192f) | Protenix (16L, 64f) |
+|---|---|---|---|
+| **internal (per-layer)** | **+0.542** | **+0.514** | **+0.487** |
+| TM to wild type | +0.229 | +0.254 | +0.289 |
+| pLDDT | +0.250 | +0.389 | +0.414 |
+| pLDDT at site | +0.083 | +0.168 | +0.088 |
+| position-only | −0.014 | +0.186 | +0.186 |
+| **gap, 95 % CI** | **+0.313 [+0.227, +0.402]** | **+0.260 [+0.156, +0.372]** | **+0.198 [+0.084, +0.311]** |
+| internal beats TM | 20/20 | 17/20 | 15/20 |
+
+**All three clear zero.** And Boltz-2 scores **0.542** on these four assays
+against its 12-assay headline of **0.548** — a useful check that the whole
+protocol reproduces itself on a different assay subset and variant selection.
+
+The 5-feature shortcut is gone, and with it the "not comparable to rho = 0.548"
+caveat that was repeated in every table and figure. Remaining non-identity, now
+stated instead: Boltz-2 uses 250 variants with pair-sampled per-layer features;
+OF3 and Protenix use 100 variants and all pairs.
+
+### A bug caught before launching, worth recording
+
+`dz_site` reshaped z to `[L, N*N, C]` and then indexed by residue — which selects
+row 0 / column `pos`, not the mutated residue's row. Plausible magnitudes, wrong
+quantity. `ds_site` was unaffected because `s` is already `[L, N, C]`. Found by
+sanity-checking the smoke run's features rather than by reading the code.
+
+### Note on the shallow-vs-deep comparison
+
+Protenix's number went slightly DOWN (0.519 shallow -> 0.487 deep). The two
+feature sets are not nested: the shallow set was
+{kl_glob, kl_site, ent_glob, ent_site, ed_site} at the final layer, the deep one
+is {kl_glob, kl_site, dz_site, ds_site} across layers. Entropy and E[d] are
+dropped in the deep set. So "deep is better" is not guaranteed and did not
+happen here — worth not overstating.
