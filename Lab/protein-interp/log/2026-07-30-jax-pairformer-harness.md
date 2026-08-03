@@ -2410,3 +2410,57 @@ strong. It is a precondition only that the alignments have the same shape, and
 with a fixed cap the real re-searched alignments satisfy it.
 
 Rerunning the route decomposition on real, per-variant alignments capped at 512.
+
+---
+
+## 2026-08-02 — route ablation on REAL alignments: msa_prior was zero by construction
+
+3 assays x 12 variants = 36 observations, each variant carrying its own
+re-searched alignment capped at 512 rows.
+
+| route | REAL necess | REAL suffic | GRAFTED necess | GRAFTED suffic |
+|---|---|---|---|---|
+| `z_direct` | +0.511 | **+0.963** | +0.840 | +0.995 |
+| `s_direct` | 0.000 | 0.000 | 0.000 | 0.000 |
+| `msa_bcast` | −0.040 | +0.182 | +0.002 | +0.160 |
+| `msa_query` | +0.008 | +0.033 | +0.002 | +0.008 |
+| **`msa_prior`** | **+0.073** | **+0.440** | **0.000** | **0.000** |
+
+### What survives
+
+**`z_direct` is still the dominant route** — sufficiency 0.963 against 0.995
+grafted. Injecting the pair representation alone still reproduces essentially the
+whole effect. The core of the claim holds.
+
+### What does not
+
+**`msa_prior` goes from exactly 0.000 to +0.440 sufficiency.** Under grafted
+alignments its zero was **true by construction**: every variant carried
+byte-identical homolog rows, so injecting them could not do anything. With real
+alignments the homolog rows differ slightly and that alone reproduces **44 % of
+the mutation's effect**.
+
+So "the MSA routes carry essentially nothing" is **no longer supportable**. The
+correct statement is that the effect is **redundantly encoded**: `z_direct` and
+`msa_prior` are both largely sufficient, which is also why `z_direct` necessity
+falls 0.840 → 0.511 — with a second channel available, restoring one no longer
+removes most of the effect.
+
+Striking that homolog sets only ~2–5 % different by UniRef ID are enough to carry
+0.44 sufficiency.
+
+**The circularity was real.** My earlier reasoning was right even though the
+measurement I used to motivate it (alignment-string overlap) was wrong.
+
+### Caveat that must be fixed before this goes in the paper
+
+**Depth is confounded.** The grafted reference ran at cap 2048; this ran at
+cap 512. Depth is known to change mutation sensitivity (single-sequence is ~4.4x
+more sensitive than full depth), so part of the difference may be depth, not
+alignment content. **The grafted arm must be re-run at cap 512 on these same 3
+assays** before the two columns can be compared directly. Until then the
+qualitative finding (`msa_prior` is non-zero with real alignments, and cannot be
+otherwise) stands, but the magnitudes do not.
+
+Also: 3 assays / 36 obs here vs 12 assays / 24 obs for the grafted reference —
+different protein sets.
