@@ -1298,3 +1298,1274 @@ source protein so folds are not duplicated. With the existing four that is
 **12 assays**. MSAs generating via the ProtForge container. This is the fix for
 the largest weakness in §20–22: effect sizes span 1.4×–6.0× across four assays
 and four is not enough to say whether that is fold-dependent or noise.
+
+---
+
+## 26. N = 12 — the main result holds and tightens
+
+Twelve Tsuboyama folding-stability assays, 250 variants each, Spearman on
+held-out **positions**, 5 position-grouped splits per assay = **60 assay-splits**.
+Identical rows for every predictor.
+
+| predictor | pooled mean ± sd |
+|---|---:|
+| **internal (linear over per-layer pair features)** | **+0.548 ± 0.169** |
+| pLDDT mean | +0.244 ± 0.200 |
+| TM to wild type | +0.214 ± 0.173 |
+| pLDDT at mutated residue | +0.037 ± 0.227 |
+| position-only baseline | +0.069 ± 0.186 |
+
+internal > TM-to-WT in **57/60** assay-splits; gap **+0.335**, 95 % paired
+bootstrap CI **[+0.288, +0.380]**. Per-assay internal ρ ranges **0.392–0.704**
+(mean 0.548) — far tighter across twelve proteins than the four-assay sample
+suggested, which was the main worry.
+
+Two changes from the N=4 numbers worth noting:
+
+- **pLDDT mean (+0.244) now slightly beats TM-to-WT (+0.214).** The model's
+  confidence is a marginally better stability readout than its own geometry.
+  Both remain less than half the internal state.
+- **Stop quoting the ratio.** It ranges 1.3× (NUSA) to 28.3× (PKN1), but PKN1's
+  TM correlation is 0.017, so the ratio is a near-zero denominator artefact. The
+  **gap** (+0.335, CI [+0.288, +0.380]) is the stable statistic and is what
+  should be reported.
+
+## 27. β on the bias path — the knob works, and the hypothesis is refuted
+
+RCRO, 120 variants × K=6 samples, β applied to the pair-derived attention biases.
+
+| β | WT ensemble spread | ρ(spread, ΔG) | ρ(TM to WT, ΔG) | ρ(pLDDT, ΔG) | WT pLDDT |
+|---:|---:|---:|---:|---:|---:|
+| 1.0 | 0.9900 | +0.161 | **+0.435** | +0.037 | 0.858 |
+| 1.5 | 0.8031 | +0.208 | +0.294 | +0.139 | 0.798 |
+| 2.0 | 0.6139 | +0.156 | +0.283 | +0.208 | 0.736 |
+| 3.0 | 0.3032 | −0.139 | +0.018 | **+0.299** | 0.569 |
+
+**The intervention is unambiguously connected**: wild-type ensemble spread goes
+from 0.990 to 0.303 in mean pairwise TM — the sampler is enormously widened.
+
+**But widening does not liberate the trunk's information.** ρ(TM to WT, ΔG)
+*degrades monotonically*, 0.435 → 0.018. The structural stability signal is
+destroyed, not released. Ensemble spread does not improve either (0.161 → 0.208
+→ 0.156 → −0.139).
+
+So the hypothesis that **the sampler's default narrowness is what hides the
+mutation** is **refuted** in the range tested. Widening the pairwise bias just
+adds noise to the geometry.
+
+One genuinely interesting counter-trend: **ρ(pLDDT, ΔG) rises monotonically with
+β** (0.037 → 0.299). As the sampler widens, the confidence head becomes a
+*better* stability readout — presumably because destabilising variants generate
+more disagreement among samples, which pLDDT registers. That is a usable
+observation in its own right, and it is the one thing β bought.
+
+*Caveat:* β = 1.5 already drops WT pLDDT from 0.858 to 0.798 and ensemble spread
+to 0.80, so the model is off-distribution quickly. A gentler grid (1.05, 1.1,
+1.2) could in principle show a peak before the degradation; the trend from 1.0
+is monotone down, so it is unlikely but untested.
+
+## 28. Correction to the β diagnostic in the methods
+
+The check prescribed in `methods_pairformer_interp.md` §4.13 — "confirm
+‖Δq‖/‖q_wt‖ changes across β" — is **wrong, and I wrote it into the pushed
+methods document**. ‖Δq‖/‖q_wt‖ is a relative difference, so a global scale
+cancels exactly; it read 0.284703 for every β while the intervention was
+working. It also reads the unscaled conditioning, since `cond` is computed from
+the unwrapped model.
+
+Replaced with scale-sensitive checks (wild-type pLDDT, wild-type ensemble
+spread), both of which move hugely and monotonically. General rule now recorded:
+*a diagnostic must be sensitive to the quantity the intervention changes* — and
+that has to be verified before the diagnostic is trusted, not after.
+
+---
+
+## 29. Denoising trajectory — inconclusive, and why
+
+`exp_trajectory.py`. The `AtomDiffusion2.sample` scan discards `ys` exactly like
+the Pairformer, so the trajectory is captured the same way (re-run the scan with
+`ys` populated, dynamics bit-identical). 200 steps, CA only, 24 variants per
+assay chosen as the 12 most and 12 least destabilising.
+
+**The raw divergence curve is uninformative.** Mean mutant-vs-WT CA RMSD tracks
+the noise schedule and nothing else: 2605 Å at σ=2560 down to 8.75 Å at
+σ=0.002 (RCRO); 2787 → 8.16 Å (RS15). That is the σ envelope, not the mutation.
+
+**The cross-run comparison is not properly paired.** A substitution changes the
+side chain, so the all-atom count differs between wild type and mutant (492 vs
+491 for RCRO). `shape = (*atom_mask.shape, 3)` therefore differs, so
+`jax.random.normal(shape=shape, key=k)` draws a **different noise realisation**
+even from an identical key. The two trajectories are independent samples, not a
+paired comparison. Corroborating sign: final mutant-vs-WT RMSD is 8.2–8.7 Å,
+whereas the ensemble runs put variant-vs-WT at TM ≈ 0.985 (~1 Å) — the gap is
+the unpaired noise.
+
+**The rank statistic across variants does not replicate.** Spearman(divergence,
+ΔG) at fixed step, which divides out the common σ:
+
+| | step 0 (σ 2560) | step 120 (σ 14) | final (σ 0.002) | peak |
+|---|---:|---:|---:|---:|
+| RCRO | +0.479 | +0.321 | **−0.538** | +0.608 (step 23) |
+| RS15 | +0.136 | +0.281 | +0.043 | +0.437 (step 34) |
+
+The two assays disagree in magnitude and, at the final step, in **sign**. With
+n = 24 the standard error on a Spearman is ≈ 0.21, so almost none of this is
+distinguishable from zero. The within-run convergence curves (each trajectory vs
+its own endpoint, which needs no cross-run pairing) disagree just as badly:
+ρ(convergence, ΔG) at step 160 is +0.483 for RCRO and +0.250 for RS15, and both
+collapse to ≈ 0 at the final step.
+
+**Confound checked and cleared, which makes it worse not better.** Substitutions
+to larger residues change the atom count *and* tend to destabilise, so atom count
+could have driven everything. It does not: ρ(Δatom count, ΔG) = +0.091 (RCRO) /
++0.606 (RS15), and partialling it out leaves the step-0 correlation essentially
+unchanged (+0.479 → +0.490 for RCRO). So the RCRO step-0 correlation at σ=2560
+is not an atom-count artefact — but it is also not interpretable, because at that
+noise level there is nothing for it to mean. That points at n=24 noise rather
+than signal.
+
+**Verdict: no conclusion drawn.** The experiment needs redesigning before it can
+answer "never grown" vs "grown then lost":
+
+1. **Pair the noise.** The comparison must use the same realisation. Either draw
+   noise once at a fixed maximum size and index it consistently, or — simpler
+   and assumption-free — add a **within-variant noise floor**: run each variant
+   twice with different keys and report mutant-vs-WT divergence *relative to*
+   same-variant-different-key divergence. Any claim needs that denominator.
+2. **n = 24 is far too small** for a rank statistic. 100+ variants per assay.
+3. **Report at matched σ**, not matched step index, if sampling-step counts ever
+   differ between runs.
+
+Cost of the corrected version is roughly 5× what was just spent, which is
+affordable but should not be spent until the pairing is fixed — an unpaired
+experiment at n=100 is still unpaired.
+
+---
+
+## 2026-08-01 — trajectory, run twice; and a second superposition bug
+
+### The bug first, because it invalidated a whole run
+
+The corrected trajectory design (within-sequence noise floor, n=100) ran and
+returned a clean, plausible answer: divergence *below* the WT key-to-key floor
+at essentially every step, ratio 0.5–0.9, ρ(divergence, ΔG) never above 0.3.
+Every number was wrong.
+
+`exp_trajectory.py` had defined its **own** `kabsch_rmsd` instead of importing
+one, with the rotation transposed — `R = U diag Vᵀ` where Kabsch gives
+`R = V diag Uᵀ` — so it applied the inverse rotation. Tested on an input with a
+known answer it scored two structures **identical up to a rigid motion at
+12.68 Å instead of 0**. Both numerator and denominator were wrong in the same
+direction, which is precisely why the ratio looked stable.
+
+Caught by comparing `kabsch_rmsd` against `tmtools` on the GFP cohort, where
+they should agree when TM-align aligns all residues, and they did not.
+
+**This is the same mistake as the hand-rolled TM-score, made again after that
+one was documented in this very file.** The corrected floor is 0.3–0.7 Å where
+the broken one said 13.4 Å.
+
+Fix is structural, not local: `geom.py` is the single copy of every
+superposition primitive, `geom.self_test()` runs **on import** and asserts a
+rigid motion gives exactly 0, a reflection does not, a pure translation gives 0.
+`exp_trajectory.py` now imports it and also saves endpoint coordinates so
+re-analysis never needs the GPU again. Invalid files kept under
+`runs/_invalid/` with a note rather than deleted.
+
+**Generalisable lesson.** Both times the broken function returned numbers in the
+right units, with the right sign, ordered the way intuition expected. Nothing
+about the output said "wrong". Writing the lesson down did not prevent the
+repeat; only an executable check did.
+
+### The actual result (`runs/traj3_*.npz`, 3 assays × 100 variants)
+
+| assay | ratio σ>10 Å | ratio σ<1 Å | endpoint ρ | p |
+|---|---|---|---|---|
+| RCRO_LAMBD | 0.68 | **1.03** | **−0.380** | 1e−4 |
+| RS15_GEOSE | 0.63 | 0.86 | −0.060 | 0.55 |
+| NKX31_HUMAN | 0.62 | 0.53 | −0.003 | 0.98 |
+
+**Robust across all three:** during global fold determination (σ 2560 → ~1 Å,
+80 % of the schedule) the ratio is flat at ~0.6. The mutant's path is *closer*
+to the WT's than two WT runs are to each other. The conditioning difference does
+not steer the trajectory while the fold is being chosen.
+
+**Varies by protein:** below σ ≈ 1 Å the curves separate (1.08 / 0.89 / 0.52).
+A mutation-specific response exists but is confined to fine refinement, after
+the fold is committed.
+
+**Limits on the RCRO number, which must travel with it:** (1) ρ = −0.380 is
+in-sample over 100 variants, not held-out, so it is *not* comparable to the
+probe's 0.548; (2) endpoint divergence is essentially "structure differs from
+WT", i.e. a re-measurement of the TM readout (+0.214 pooled), not a new channel;
+(3) 1 of 3 is weak. Do **not** quote max-over-steps (0.435) — that is an argmax
+over 200 candidates on the reported quantity, the same select-on-test error
+already caught in the probe.
+
+**Effect on the account.** "The sampler discards it" is too strong. Better: the
+sampler is **insensitive to the conditioning while the global fold is chosen**,
+and becomes mutation-sensitive only during local refinement, by which point the
+fold is committed. Consistent with the β result (widening adds noise rather than
+releasing information) and with flat pLDDT-at-site.
+
+### Also landed
+
+- **Route decomposition across all 12 assays** (24 protein × variant obs):
+  median `z_direct` necessity 0.840, sufficiency 0.995; all MSA routes ≈ 0
+  (`msa_bcast` sufficiency 0.160 the only non-trivial competitor). The GFP
+  result is not a property of GFP. → `figures/routes12.png`
+- **Mechanism figure** from `runs/distomap_gfp.npz`: WT and mutant E[d] maps,
+  their difference, the symmetric-KL map, TM-aligned structure overlay, and the
+  64-bin histogram behind the worst single pair. GFP + 32 core mutations moves
+  individual pairs by up to **7.6 Å** in E[d] and 0.92 nats mean KL, and the two
+  structures still superimpose at **TM 0.935**. → `figures/mechanism.png`
+- Report renumbered contiguously (§2.1–2.6, §4.0–4.11) and rewritten per review:
+  probe input data and ρ formula stated explicitly, "assay-split" defined,
+  spatial-localisation measurement spelled out, RSA explained with a warning not
+  to compare its 0.138 against the probe's 0.548 (second- vs first-order).
+
+---
+
+## 2026-08-01 (later) — difference amplification: GAIN hypothesis not supported
+
+`exp_amplify.py`, 3 assays × 60 variants, γ ∈ {0,1,2,4,8}, diffusion key held
+fixed across γ. Scales only `(mut − wt)` in the trunk state, decodes with the
+mutant's features. → `figures/amplify.png`
+
+### The apparent result
+
+ρ(TM-to-WT, ΔG) pooled: **0.190 (γ=1) → 0.508 (γ=8)**. A large gain, close to
+the Pairformer probe's 0.548. Sanity checks pass: γ=0 (mutant atoms, WT trunk
+state) gives −0.006, and γ=1 reproduces the known TM-to-WT baseline (0.190 vs
+0.214 on 12 assays).
+
+### The control kills it
+
+The norm-matched permuted control — variant *i* gets variant *j*'s difference
+vector rescaled to ‖Δz_i‖ — reaches **0.396**, i.e. **78 % of the effect**, with
+the *wrong direction* entirely.
+
+Direction-specific gap, pooled bootstrap over variants:
+**+0.110, 95 % CI [−0.027, +0.252], P(>0) = 0.946.** The CI includes zero.
+
+### Why the control is not information-free — the design flaw worth recording
+
+I norm-matched to remove magnitude as a confound. But **magnitude *is* the
+signal**: ‖Δz‖ on its own predicts ΔG at ρ = −0.56 / −0.74 / −0.61 (mean 0.637).
+So rescaling to ‖Δz_i‖ preserved the most informative feature and removed only
+direction. Confirmed by the chain: ρ(TM_perm@8, ‖Δz‖) = −0.53…−0.74, i.e. the
+permuted structures' displacement tracks ‖Δz‖ nearly as well as the true ones do.
+
+**A control that holds a quantity fixed is only a control if that quantity is
+not itself the signal.** Mine isolated direction, which is a legitimate and
+useful comparison — but it is not the "is this mutation-specific?" test I set
+out to run, and the first version of `analyze_amplify.py` printed
+"mutation-specific" on an arbitrary `gap > 0.10` rule. Threshold removed;
+the script now reports the bootstrap CI and states plainly when it spans zero.
+
+### What amplification actually does
+
+It converts the **magnitude** of the trunk's response into structural
+displacement, so TM-to-WT becomes a lossy proxy for ‖Δz‖. It is not a fix:
+
+| readout | ρ with ΔG | cost |
+|---|---|---|
+| TM to WT, ordinary (γ=1) | +0.190 | — |
+| TM to WT, perm control (γ=8) | +0.396 | wrong direction |
+| TM to WT, amplified (γ=8) | +0.508 | TM 0.87, RMSD ~2 Å, pLDDT −0.02 |
+| **‖Δz‖ straight off the trunk** | **+0.637** | **no decoding at all** |
+
+Reading the perturbation norm off the trunk beats every decoded structure, needs
+no sampling, and does not push the model 8× out of distribution.
+
+### Verdict and consequence
+
+**GAIN is not supported; the evidence points to STRUCTURAL.** The trunk's
+*directional* information — which specific structural change it implies — remains
+largely unexpressed even at 8× amplification. Scaling is the wrong lever.
+
+Next rung is therefore §3.2 of `publication_plan.md` (distogram rescoring: sample
+N, rerank by likelihood under the *mutant's own* distogram) and then §3.3
+(distogram guidance), not more scaling.
+
+Caveats to carry: n = 60 per assay, 3 assays, 100 sampling steps. The +0.110 gap
+is consistent in sign and size across all three (0.107 / 0.118 / 0.096), which is
+suggestive; it is not established.
+
+---
+
+## 2026-08-02 — trunk-structure consistency: also negative. Three fixes now ruled out.
+
+`exp_consistency.py`, 3 assays × 60 variants, K=8 samples per variant.
+Scores the decoded structure under the trunk's own distogram:
+`c_own = mean_ij log P_mut(d_ij)`, pairs with |i−j| ≥ 3.
+
+### It does not work, and the reason is instructive
+
+Raw ρ(c_own, ΔG) = **−0.525**, which looks promising. It is almost entirely
+distogram **sharpness**, not trunk-structure disagreement:
+
+| | NKX31 | RCRO | RS15 | mean |
+|---|---|---|---|---|
+| ρ(entropy H, c_own) | +0.810 | +0.920 | +0.930 | **+0.887** |
+| ρ(c_own, ΔG) raw | −0.607 | −0.550 | −0.416 | −0.525 |
+| ρ(c_own, ΔG) **partialling H** | −0.433 | **−0.006** | −0.187 | **−0.209** |
+
+`c_own` is 81–93 % determined by entropy. The mechanism is the *opposite* of what
+I anticipated when writing the controls: I expected a broad distogram to lower
+log-likelihood for everything. In fact a **sharp** distogram is unforgiving — it
+punishes the inevitable sub-Ångström structural error severely, while a broad one
+assigns moderate probability everywhere. Stable variants have sharp distograms
+and therefore score *worse*. After partialling entropy the effect is −0.209 and
+inconsistent (one assay at −0.006).
+
+Note also that `c_own − c_wtdist` (−0.563) does **not** fix this. I had reasoned
+that scoring the same structure under two distograms cancels structure quality —
+true — but it does not cancel entropy, because the two distograms have different
+entropies. Only the rank-partial is clean.
+
+### Reranking: not established
+
+Best-of-8 by consistency vs the mean of 8, ρ(TM-to-WT, ΔG):
+
+| | benefit | 95 % CI |
+|---|---|---|
+| NKX31 | +0.310 | [+0.017, +0.598] |
+| RCRO | +0.156 | [−0.069, +0.390] |
+| RS15 | **−0.203** | [−0.477, +0.060] |
+| **pooled** | **+0.088** | **[−0.062, +0.240]**, P(>0) = 0.873 |
+
+Sign flips across assays. Within a variant the entropy is constant across the K
+samples, so *this* comparison is not entropy-confounded — the reranking result is
+clean and simply null.
+
+### Distogram entropy is a real readout but NOT an independent one
+
+ρ(H, ΔG) = **0.483** — better than TM-to-WT (0.214) and pLDDT-at-site (0.037).
+But H and ‖Δz‖ correlate at 0.58–0.70, and partialling shows H is subsumed:
+
+| | mean partial |
+|---|---|
+| ρ(H, ΔG) given ‖Δz‖ | **−0.13** |
+| ρ(‖Δz‖, ΔG) given H | **−0.49** |
+
+So there is one trunk readout, not two. **‖Δz‖ is it.**
+
+### Standing scoreboard — training-free readouts
+
+| readout | ρ with ΔG | where it lives |
+|---|---|---|
+| **‖Δz‖, trunk pair-state shift** | **0.637** | trunk, no decoding |
+| distogram entropy | 0.483 | trunk (subsumed by ‖Δz‖) |
+| TM to wild type | 0.214 | decoded structure |
+| consistency, entropy-partialled | 0.209 | both (inconsistent) |
+| pLDDT at the mutated residue | 0.037 | confidence head |
+
+### Consequence for the paper
+
+**Three candidate fixes now tested, all negative:** sampler under-dispersion (β),
+insufficient gain (amplification), and trunk-structure consistency + reranking.
+§7 of `paper_outline.md` becomes "three explanations ruled out", which hardens the
+structural account considerably — the decoder's insensitivity is not a matter of
+scale, not a matter of sampler width, and not a matter of selection among samples
+it already generates.
+
+The positive claim tightens too: if you want mutational effect out of a folding
+model, read ‖Δz‖ off the trunk. Everything else tried is worse or is a weaker
+correlate of it.
+
+
+### Correction (2026-08-02): do not compare ‖Δz‖ = 0.637 to the probe's 0.548
+
+The amplification figure originally drew a reference line at the 12-assay probe
+value (0.548) beside the ‖Δz‖ bar (0.637), implying ‖Δz‖ beats the probe. **It
+does not, and the comparison is invalid** for three independent reasons:
+
+1. **Different assay set.** 0.548 is 12 assays. ‖Δz‖ is 3. The probe on *those
+   three* averages **0.506** (NKX31 0.490, RCRO 0.634, RS15 0.392).
+2. **Different protocol.** The probe is a fitted model scored on held-out
+   *positions*. ‖Δz‖ is a single unfitted feature scored on all rows.
+3. **Range expansion.** The 60 variants are picked by `np.linspace` over
+   ΔG-sorted rows, which raises the ΔG spread above the full assay's —
+   sd ratios **1.047 / 1.123 / 1.219**. Correlations on range-expanded samples
+   are systematically inflated.
+
+What *is* supported: within the amplification experiment all readouts are the
+same 60 variants under the same protocol, so **‖Δz‖ beats every decoded
+structure there** (0.637 vs 0.508 amplified, 0.396 permuted control, 0.190
+ordinary). The reference line has been removed from the figure and the caveat
+added to the report.
+
+The general lesson, which is the same one as entries 5/9 and the norm-matched
+control: **a number is only comparable to another number computed the same way
+on the same sample.** Three of this project's errors are now variations of
+putting two incomparable quantities side by side.
+
+---
+
+## 2026-08-02 (later) — OpenFold3: the phenomenon replicates
+
+First cross-model result. `exp_distomap_of3.py` + `fig_crossmodel.py`.
+Figures in `prot_interp_files/figures_of3/`.
+
+### Porting notes (both cost a run; record them)
+
+1. **MSA file naming.** `parse_msas_direct` silently **skips** any alignment
+   whose basename is not a key of `msa.max_seq_counts` — no warning, it returns
+   an empty dict and the pipeline dies much later with an unrelated
+   `IndexError` in `parse_msas`. Our colabfold output must be presented as
+   `colabfold_main.a3m`.
+2. **Templates are unconditional.** `InferenceDataset.create_all_features`
+   always calls the template stage, and with no template alignment it crashes in
+   `create_template_restype` (`vectorize` on size-0). `n_templates = 0` does not
+   help — it produces exactly the empty arrays that crash. Overridden with an
+   explicit empty template block (one slot, all masks zero). Boltz-2 runs carry
+   no templates either, so the comparison stays fair.
+
+Also: OF3 exposes pLDDT as **logits over bins, per ATOM**, not per token as in
+Boltz-2 — expectation over bin centres on [0,1], then indexed at the
+representative atom. And the distogram head is a bare linear layer carrying no
+bin metadata, so `n_bins` is recorded at runtime and E[d] is refused unless the
+grid matches. It came back **64 bins**, the same grid as Boltz-2, so nats and
+Angstrom are directly comparable here.
+
+### Result
+
+Identical sequences, identical alignments, no templates in either model.
+
+| cohort | mean sym. KL | TM to WT | pLDDT |
+|---|---|---|---|
+| | Boltz-2 / OF3 | Boltz-2 / OF3 | Boltz-2 / OF3 |
+| 32 core | 0.92 / 1.30 | **0.935 / 0.932** | 0.825 / 0.801 |
+| 32 surface | 0.23 / 0.33 | 0.970 / 0.980 | 0.934 / 0.908 |
+| scramble | 6.38 / 8.57 | **0.287 / 0.233** | 0.290 / 0.309 |
+
+1. **Belief moves, structure does not** — in both models. 32 buried mutations
+   move pairwise beliefs by ~1 nat, individual pairs by 6–8 Å of expected
+   distance, and the structures still superimpose at TM 0.93.
+2. **The scramble control works in both.** A genuinely different sequence moves
+   the structure decisively (TM 0.23–0.29), so structural invariance is specific
+   to mutation rather than general insensitivity.
+3. **The core:surface ratio of belief change is 4.08 (Boltz-2) vs 3.98 (OF3).**
+   Two independently trained models agreeing to two significant figures is the
+   strongest single indication so far that this belongs to the architecture
+   class, not to a checkpoint.
+
+**Caveats.** OF3's absolute KL is ~40 % higher than Boltz-2's in *every* cohort
+including the scramble — a difference in distogram sharpness, not in mutation
+sensitivity, which is why the *ratio* is the quantity to trust and why the
+cross-model figure leans on KL ordering rather than absolute nats. n = 1 protein,
+one cohort design. The ProteinGym internal-vs-output comparison has **not** been
+run on OF3 yet — that is the next piece, and it is the one that carries the
+paper's central claim.
+
+---
+
+## 2026-08-02 (later still) — uniform model layer: works, but ONE BLOCKING BUG
+
+Goal: dedicated extractor per model, one analysis layer for all. Tested
+Boltz-2 / OpenFold3 / Protenix through a single code path (`pi_models.py`,
+`multi_smoke.py`).
+
+### mosaic already has the uniform layer
+
+`StructurePredictionModel` gives every model the same two calls
+(`target_only_features` → `model_output`), returning a `StructureModelOutput`
+with normalised `distogram_logits`, `distogram_bins`, `plddt`,
+`backbone_coordinates`, `atom37_coords`. Wrappers exist for af2, boltz1, boltz2,
+esmfold2, of3, protenix, proteina.
+
+**The bespoke `exp_distomap_of3.py` written earlier duplicated work this layer
+already does** — the a3m basename filter, the unconditional template stage, and
+the per-atom vs per-token pLDDT difference are all handled inside it. Worth
+remembering before writing the next extractor.
+
+Loader shapes differ and are not guessable, so `pi_models.BUILDERS` records them:
+`Boltz2()` and `OF3()` are classes; `protenix.load_model()` returns the
+**low-level protenij module, not the mosaic wrapper** (both are named `Protenix`
+— an easy hour to lose); the wrapper is `Protenix(protenix=..., default_sample_steps=...)`.
+
+### All three run. The grids do NOT match.
+
+| model | N | bins | grid (A) | width | pLDDT |
+|---|---|---|---|---|---|
+| Boltz-2 | 63 | 64 | 2.156 – 21.844 | 0.3125 | 0.849 |
+| OpenFold3 | 63 | 64 | 2.156 – 21.844 | 0.3125 | 0.789 |
+| Protenix | 63 | 64 | **2.312 – 21.688** | **0.3075** | 0.953 |
+
+Boltz-2 and OF3 share a grid exactly; **Protenix does not**. The smoke test
+flags this automatically rather than leaving it to be noticed later. Within a
+model, KL against its own wild type is exactly valid; *across* models, absolute
+E[d] and nats carry a grid-convention difference and only orderings and ratios
+should be compared.
+
+Also: the mosaic Boltz-2 wrapper reports `distogram_bins` as `linspace(2,22,64)`,
+which is **not** Boltz-2's actual centres (2.15625…21.84375, width 0.3125).
+Using it would have shifted new E[d] values by up to ~0.16 A relative to every
+Boltz-2 number already reported. `pi_models.BIN_OVERRIDE` pins the correct grid
+and says why.
+
+pLDDT spans 0.789–0.953 for the *same protein* — the models are calibrated very
+differently, which is another reason the cross-model figure must compare patterns
+rather than absolute values.
+
+### BLOCKING: only Boltz-2 honours `msa_path`
+
+`TargetChain.msa_path` is documented as "read this instead of querying
+api.colabfold.com". Grepping the wrappers:
+
+    boltz2.py:53   elif chain.msa_path is not None:      <- honoured
+    of3.py         (no match)                            <- IGNORED
+    protenix.py    (no match)                            <- IGNORED
+
+Confirmed in the run logs: OF3 printed "Submitting 1 sequences to the Colabfold
+MSA server" and Protenix "Msa server is running… Files downloaded". So through
+the uniform layer, **the three models would be run on three different
+alignments**, silently, while appearing controlled. `of3._compute_msas` has no
+skip-if-exists path — `preprocess_colabfold_msas` always submits.
+
+This would have quietly destroyed the cross-model comparison: alignment depth
+and composition are exactly the variable the grafted-MSA design exists to hold
+fixed. It also makes runs network-dependent and non-reproducible.
+
+**Note the irony:** the bespoke `exp_distomap_of3.py` got this *right* — it
+copied our a3m in as `colabfold_main.a3m` — so the already-published OF3 GFP
+result stands. It is the *uniform* path that is unsafe.
+
+### Fix before launching anything
+
+Per-model adapters in `pi_models.py` that inject `chain.msa_path` into the query
+set and bypass the server, then a verification that all three models see an
+alignment with identical depth and identical first row. Only then launch the
+full campaign.
+
+---
+
+## 2026-08-02 — alignment control fixed; three models, one extractor, one schema
+
+### The fix
+
+`pi_models.features_for()` injects our a3m the way each pipeline demands:
+Boltz-2 via `msa_path`, OF3 via a file named **`colabfold_main.a3m`** (its parser
+silently skips any other basename), Protenix via a directory holding
+`pairing.a3m` / `non_pairing.a3m`.
+
+Passing the path is not proof it was used, so `pi_models.block_network()`
+replaces every MSA-server entry point with a raise. A model that fell back now
+**fails loudly** instead of substituting an alignment we did not choose.
+
+Verified (`msa_control_test.py`): nothing reached the server, and every depth
+derives from our file — a3m 827 rows; Boltz-2 759, OF3 828 (827 + query),
+Protenix 772. Row counts differ through each pipeline's own dedup/cap, which is
+unavoidable and is not a different alignment. **Depth equality was the wrong
+criterion** and the first version of the test asserted it; corrected.
+
+(The first depth readout said Boltz-2 = 63, which is the sequence *length*, not
+the depth — reading the wrong axis returns a plausible-looking number. Fixed by
+identifying the row axis by elimination against the token count.)
+
+### One extractor, one schema
+
+`exp_distomap_multi.py --model {boltz2,of3,protenix,af2}` replaces the per-model
+scripts and writes the same npz schema, so `fig_mechanism.py` and
+`fig_crossmodel.py` run unchanged on any model. `fig_crossmodel` now takes N
+models and reports whether their distogram grids agree.
+
+### Result — GFP, identical sequences and alignments
+
+| cohort | mean sym. KL (B2/OF3/PX) | TM to WT | pLDDT |
+|---|---|---|---|
+| 32 core | 0.93 / 1.36 / 0.96 | **0.935 / 0.925 / 0.945** | 0.82 / 0.80 / 0.83 |
+| 32 surface | 0.23 / 0.30 / 0.15 | 0.970 / 0.987 / 0.986 | 0.93 / 0.91 / 0.93 |
+| scramble | 6.38 / 8.75 / 5.74 | **0.297 / 0.182 / 0.305** | 0.28 / 0.32 / 0.28 |
+
+Core:surface ratio of belief change: **4.08 / 4.51 / 6.29**.
+
+All three: ~1 nat of belief movement from 32 buried mutations with the structure
+held at TM 0.93–0.95, and a scrambled sequence moving both. The phenomenon is a
+property of the architecture class, not of a checkpoint.
+
+### Caveats carried into the paper
+
+- **Protenix uses a different distogram grid** (2.31–21.69, width 0.3075) from
+  Boltz-2/OF3 (2.16–21.84, width 0.3125). Within a model KL is exact; across
+  models only orderings and ratios are meaningful. The figure states this.
+- The mosaic Boltz-2 wrapper misreports its own bin centres as
+  `linspace(2,22,64)`; `BIN_OVERRIDE` pins the true grid so new E[d] agrees with
+  previously reported Boltz-2 numbers.
+- OF3 numbers here differ slightly from the earlier bespoke run (KL 1.36 vs
+  1.30) because the mosaic wrapper switches OF3 to a vanilla ODE sampler. Same
+  phenomenon; the unified numbers are the comparable set.
+- Still n = 1 protein. This replicates the **phenomenon**, not the causal
+  localisation — the ProteinGym internal-vs-output comparison has not been run
+  on OF3 or Protenix.
+
+---
+
+## 2026-08-02 — central claim across three diffusion models
+
+`exp_gym_multi.py` + `analyze_gym_multi.py` + `fig_gym_multi.py`.
+Figures in `prot_interp_files/figures_models/{boltz2,of3,protenix,aggregate}/`.
+
+4 assays × 100 variants, position-grouped splits, identical rows per predictor,
+alignments verified identical across models.
+
+| predictor | Boltz-2 | OpenFold3 | Protenix |
+|---|---|---|---|
+| internal (5 distogram features) | 0.404 | **0.491** | **0.518** |
+| TM to wild type | 0.344 | 0.251 | 0.291 |
+| pLDDT | 0.380 | 0.398 | 0.414 |
+| pLDDT at mutated site | 0.164 | 0.170 | 0.087 |
+| position-only baseline | 0.186 | 0.186 | 0.186 |
+
+Gap (internal − TM): Boltz-2 **+0.061 [−0.015, +0.138]**, OF3 **+0.240
+[+0.099, +0.381]**, Protenix **+0.227 [+0.135, +0.333]**.
+
+**The ordering holds in all three; the gap clears zero in two of three.** Boltz-2
+is the one that does not, which needs stating plainly rather than folding into
+an average.
+
+### Why Boltz-2 is weaker HERE than in its own headline
+
+Its full protocol gives +0.335 [+0.288, +0.380] (12 assays, 250 variants, 256
+per-layer features). On these *same 4 assays* that protocol gives internal 0.480
+vs TM 0.191.
+
+- internal 0.480 → 0.404 is explained: 5 final-trunk distogram features instead
+  of 256 per-layer ones. Per-layer capture needs model-specific plumbing, so the
+  cross-model version is necessarily weaker.
+- TM 0.191 → **0.344 is not explained**. Range expansion from the 100-variant
+  linspace pick is far too small (×1.03–×1.13). The remaining difference is the
+  mosaic wrapper's sampler settings (vanilla ODE, different step count) versus
+  the pi_core path. **Unresolved — do not assert a cause.**
+- pLDDT likewise jumps to 0.38–0.41 from 0.244 in the 12-assay run.
+
+If the sampler settings really do make TM a better stability readout, that is
+itself a finding worth chasing: it would mean the internal-vs-output gap depends
+on how the sampler is configured, which bears directly on the "how to improve
+them" question.
+
+### Scope of the cross-model replication
+
+**Replicated (measurement, computed from model outputs):** the phenomenon
+(distogram vs structure) and the internal-vs-output comparison.
+
+**Not replicated (intervention, Boltz-2 only):** route decomposition, per-sublayer
+attribution, L37–45 ablation, β sweep, σ-resolved trajectory, difference
+amplification, trunk–structure consistency. Each needs model-specific hybrid
+construction / pytree patching / sampler surgery — new code, not a rerun. The
+paper must say so.
+
+So what is closed today is: **the phenomenon and the internal-vs-output ordering
+generalise across three diffusion-sampler folding models.** The *causal
+localisation* remains Boltz-2-only.
+
+---
+
+## 2026-08-02 — TM discrepancy resolved: it was sampling steps
+
+The first cross-model batch showed Boltz-2's internal-vs-output gap at +0.061
+with a CI including zero, while OF3 and Protenix cleared it. Resolved: **that
+batch ran at 100 sampling steps; every other Boltz-2 result runs at 200.**
+
+### Two hypotheses tested and rejected first
+
+1. **Variant selection.** `exp_gym2` picks 250 variants with `rng.choice`;
+   `exp_gym_multi` picks 100 by `linspace` over ΔG-sorted rows. Tested on the
+   ORIGINAL coordinates — same structures, same TM values, only the selection
+   changed — and it accounts for **+0.018**, not the ~+0.12 needed. (I had
+   dismissed this on sd ratios, then revived it on a density argument; both
+   readings were wrong and the direct test settles it.)
+2. **Wrapper sampler settings.** The mosaic OF3 wrapper switches to a vanilla
+   ODE sampler; the **Boltz-2 wrapper does not touch the sampler at all**.
+
+### The actual cause
+
+Matched variants through both pipelines showed materially different structures:
+TM(old, new) = 0.967 / 0.662 / 0.928 / 0.755, and mean TM-to-WT ~0.99 (200 steps)
+vs 0.67–0.97 (100 steps). **A degraded, noisier structure correlates better with
+ΔG**, inflating the baseline the trunk is compared against.
+
+At 200 steps, all four assays, all three models:
+
+| | internal | TM to WT | gap | 95 % CI | wins |
+|---|---|---|---|---|---|
+| Boltz-2 | 0.405 | 0.256 | **+0.149** | [+0.083, +0.211] | 17/20 |
+| OpenFold3 | 0.487 | 0.250 | **+0.237** | [+0.098, +0.373] | 16/20 |
+| Protenix | 0.519 | 0.286 | **+0.233** | [+0.143, +0.339] | 18/20 |
+
+Boltz-2's TM moved 0.344 → 0.256; its internal score did not move (0.404 →
+0.405). **Only the structural baseline changed.** The claim now holds in 3/3.
+
+### Keep as a result, not just a fix
+
+The size of the internal-vs-output gap **depends on how well the structure module
+is run** — under-sampling narrows it for the wrong reason. Every comparison of
+this kind must state its sampling settings. It also poses a question for the
+improvement work: does *better* sampling widen the gap further?
+
+---
+
+## 2026-08-02 — behavioural anchor across models; AF2 blocked
+
+### The anchor replicates in all three diffusion models
+
+GFP dose series (1→32 core mutations, random loads, scramble), full alignment,
+read as structure / confidence / internal. → `figures_models/aggregate/anchor_msa.png`
+
+| model | WT pLDDT | 1 mut (TM / KL) | 32 core (TM / KL) |
+|---|---|---|---|
+| Boltz-2 | 0.947 | 0.976 / 0.032 | 0.935 / 0.921 |
+| OpenFold3 | 0.906 | 0.980 / 0.045 | 0.926 / 1.361 |
+| Protenix | 0.943 | 0.997 / 0.018 | 0.946 / 0.956 |
+
+Same shape in all three: from 1 to 32 mutations the **internal divergence rises
+~30–50×** while **TM falls ~0.04** and pLDDT ~0.12. The structural curve only
+breaks at the scramble (TM 0.18–0.31).
+
+### AF2 could not be compared — and this is a real blocker
+
+mosaic's AF2 wrapper is **single-sequence only**: `target_only_features` asserts
+`not use_msa`, config pins `max_msa_clusters = 1`. So AF2 can only be compared
+with the others' alignments removed too. In that regime, **three of four never
+fold the wild type**:
+
+| single-sequence | WT pLDDT |
+|---|---|
+| Boltz-2 | 0.934 (retains single-sequence capability) |
+| OpenFold3 | 0.311 |
+| Protenix | 0.349 |
+| AlphaFold2 | 0.289 |
+
+With the WT unfolded, the TM curves are distances between two unreliable
+predictions. **Nothing in that arm supports any claim about AF2.** The figure is
+retitled to say exactly that rather than carrying the anchor headline.
+
+This matters because AF2 was the model we most wanted: the only available one
+whose structure module is *not* a diffusion sampler, i.e. the one that would
+separate "diffusion is at fault" from "the trunk→structure interface is at fault
+in general". **That question stays open.**
+
+Two routes to it:
+1. a **small domain** where single-sequence folding works — AF2 reached pLDDT
+   0.64 on a 63-residue Tsuboyama protein vs 0.29 on 238-residue GFP, so the
+   ProteinGym panel is the natural target (all models single-sequence, matched);
+2. **add MSA support** to the AF2 wrapper, which is the better long-term fix and
+   would let AF2 join the main comparison rather than a degraded one.
+
+Route 1 is cheap and could run tomorrow. Note it would still be a
+single-sequence comparison, i.e. a different operating point from every other
+result in the report — worth having, but must be labelled.
+
+### Why is single-sequence confidence so low? (checked, it is real)
+
+Three independent lines say the low pLDDT is genuine, not a malformed input:
+
+1. **The input is correct.** Single-sequence featurisation yields 1–2 alignment
+   rows as it should. (My `msa_depth` readout printed "238" for Boltz-2 — the
+   sequence length. The heuristic filtered axes of size 1, so with a single MSA
+   row it picked the token axis. Same class of bug as the earlier Boltz-2 "63".
+   Fixed by identifying the row axis by elimination instead of by "largest".)
+2. **A second instrument agrees.** WT distogram entropy rises from 0.53–0.81
+   nats (MSA) to **1.89–2.02 nats** (single-sequence) in all four models, against
+   a ceiling of ln(64) = 4.16. The trunks really are far less certain.
+3. **It is the expected regime.** GFP is 238 aa; single-sequence folding at that
+   length is known to be poor, and pLDDT ≈ 0.3 is a characteristic failure value.
+
+### Boltz-2's confidence is miscalibrated single-sequence — worth keeping
+
+| single-sequence | WT pLDDT | WT disto entropy | TM(1 mut, WT) |
+|---|---|---|---|
+| Boltz-2 | **0.934** | 1.895 | 0.727 |
+| OpenFold3 | 0.311 | 1.894 | 0.629 |
+| Protenix | 0.349 | 1.899 | 0.692 |
+| AlphaFold2 | 0.289 | 2.024 | 0.650 |
+
+Boltz-2's distogram is **just as diffuse** as models that report failure, and its
+structures are **not** stable (TM(1 mut, WT) falls 0.976 → 0.727), yet its pLDDT
+stays at 0.93. Its confidence head disagrees with its own trunk. This is direct
+support for the report's line that pLDDT is a poor readout of what the model
+knows — here it is not merely uninformative but actively wrong.
+
+### Does the internal readout still work when the structure fails?
+
+KL against the wild type stays **monotonic in mutation load** for 3 of 4 models
+(Protenix inverts once at 8 mutations), including AF2, which never folds GFP:
+0.027 → 0.660 from 1 to 32 mutations. So the trunk still grades the perturbation
+when the decoder has failed.
+
+**But this does not show the internal readout is "better" here**, and two things
+forbid that reading: the GFP dose series has **no ΔG**, so nothing is being
+predicted; and KL magnitudes are *lower* single-sequence (0.66–0.83 at 32 mut)
+than with an MSA (0.92–1.36), because a diffuse baseline moving is less
+surprising than a sharp one moving. The proper test is the ProteinGym
+internal-vs-output comparison, which has **not** been run single-sequence.
+
+---
+
+## 2026-08-02 — small-domain single-sequence run: the claim does NOT hold without an MSA
+
+Goal: rescue the AF2 comparison by running all four models single-sequence on
+the 61–72 aa Tsuboyama domains, where single-sequence folding might work.
+It does work — and the answer is negative.
+
+### The models do fold these domains without an alignment
+
+WT pLDDT (vs 0.29–0.35 on 238-aa GFP):
+
+| | NKX31 | PSAE | RCRO | RS15 |
+|---|---|---|---|---|
+| Boltz-2 | 0.873 | 0.727 | 0.847 | 0.879 |
+| Protenix | 0.806 | 0.485 | 0.693 | 0.817 |
+| AlphaFold2 | 0.764 | 0.434 | 0.670 | 0.862 |
+| OpenFold3 | 0.601 | 0.489 | 0.606 | 0.664 |
+
+So this is a usable regime, unlike GFP. PSAE is weakest everywhere.
+
+### The result: internal does NOT beat output for any model
+
+4 assays × 100 variants, 200 steps, position-grouped splits:
+
+| model | internal | TM to WT | gap | 95 % CI |
+|---|---|---|---|---|
+| Boltz-2 | 0.405 | 0.322 | +0.082 | [−0.014, +0.170] |
+| OpenFold3 | 0.163 | 0.100 | +0.064 | [−0.065, +0.220] |
+| AlphaFold2 | 0.252 | 0.208 | +0.044 | [−0.021, +0.110] |
+| **Protenix** | 0.316 | **0.374** | **−0.057** | [−0.123, +0.010] |
+
+**Not one CI excludes zero, and Protenix is negative** — TM beats internal.
+Against the SAME assays and protocol WITH an MSA: +0.149, +0.237, +0.233, all
+clearing zero.
+
+### So the claim is scoped to the MSA regime
+
+This is a genuine limit, not a nuisance. **The internal-over-output advantage we
+report requires the models to be run with alignments** — which is how they are
+used, so the claim is not vacuous, but it must be stated with that scope.
+
+Per-model behaviour differs and no single mechanism explains it: Boltz-2's
+internal score is unchanged (0.405 → 0.405) while its TM improves
+(0.256 → 0.322); OF3 loses both (0.487 → 0.163, 0.250 → 0.100); Protenix loses
+internal and gains TM.
+
+### A hypothesis of mine, rejected
+
+I had proposed "a degraded, noisier structure correlates better with ΔG" as a
+general mechanism, after the sampling-steps finding. Tested across all 28
+model × assay × mode cells: **ρ(WT pLDDT, ρ(TM,ΔG)) = +0.268, p = 0.169** — if
+anything the *better*-folded cells give the better structural readout, and it is
+not significant. **The mechanism does not generalise.** The sampling-steps result
+stands as a within-Boltz-2, single-factor demonstration; it should not be quoted
+as a law.
+
+### AF2 is still untested on the actual claim
+
+The only regime in which mosaic's AF2 wrapper can run is one where the claim
+fails for *every* model, including two where it demonstrably holds with an MSA.
+So this does not test AF2 — it tests the single-sequence regime.
+
+**There is no shortcut: AF2 needs MSA support added to the wrapper.** The
+diffusion-vs-decoder question stays open, and the small-domain workaround is now
+closed off rather than pending.
+
+### Analysis audit (done before this run)
+
+- Planted-signal / pure-noise check over 600 trials: planted +0.728, pure noise
+  **+0.006** (sd 0.210). No leakage; position-grouped splits are disjoint.
+  A single split has SE ≈ 0.21, which is why one draw of +0.30 on noise meant
+  nothing.
+- **Found and fixed:** the figure hardcoded ridge λ = 1.0 while the table tuned λ
+  on an inner position-grouped split. Both now call one `fit_internal()`. The
+  published table was the tuned one and is unchanged.
+- **Found and fixed:** `msa_depth` returned the sequence length whenever the
+  alignment had a single row (it reported 238 for a 238-aa protein). Third
+  instance of the same "identify the axis by size" bug.
+
+---
+
+## 2026-08-02 — CORRECTION: Boltz-2's pLDDT is not miscalibrated. It is right.
+
+Earlier today I wrote that Boltz-2's confidence head "disagrees with its own
+trunk" and was miscalibrated single-sequence, on the grounds that its distogram
+entropy (1.895) matched OF3 (1.894) and Protenix (1.899) while its pLDDT stayed
+at 0.93 against their 0.31/0.35. **That was wrong.**
+
+The test I should have run: compare each model's single-sequence structure to its
+OWN MSA structure for the same sequence — the MSA prediction being the reference
+answer.
+
+| GFP wild type | pLDDT ss | pLDDT MSA | TM(ss, MSA) |
+|---|---|---|---|
+| Boltz-2 | 0.934 | 0.947 | **0.973** |
+| OpenFold3 | 0.311 | 0.906 | 0.290 |
+| Protenix | 0.349 | 0.943 | 0.293 |
+
+**Boltz-2 genuinely folds GFP without an alignment.** Its single-sequence
+structure is essentially identical to its MSA structure. OF3 and Protenix
+genuinely fail. Every model's pLDDT is honest, and across 12 model × assay cells
+on the small domains, **rho(pLDDT, actual accuracy) = +0.692**.
+
+**Why my inference failed:** distogram entropy measures *spread*, not
+*correctness*. All three trunks are diffuse without an MSA; only Boltz-2's mode
+is still in the right place. Equal entropy therefore says nothing about which
+model is right, and I treated it as if it did. Another instance of reading one
+statistic as though it answered a question it cannot.
+
+### So: why are OF3/Protenix confidence values low?
+
+Because they are correct to be. Both fail to fold without an alignment; their
+confidence heads report that accurately. There is no bug and nothing to fix —
+the models differ in genuine single-sequence capability, with Boltz-2 clearly
+ahead (plausibly MSA-dropout style training augmentation, though we have not
+verified the cause and should not assert it).
+
+### The interesting consequence: the MSA is what pins the structure
+
+Boltz-2's WT is correct single-sequence (TM 0.973), so its dose curve is
+interpretable — unlike OF3/Protenix, whose single-sequence baseline is already
+broken:
+
+| Boltz-2, TM to WT | 1 | 2 | 4 | 8 | 16 | 32 core mutations |
+|---|---|---|---|---|---|---|
+| with MSA | 0.976 | 0.989 | 0.986 | 0.952 | 0.932 | **0.935** |
+| single-sequence | 0.727 | 0.945 | 0.950 | 0.870 | 0.680 | **0.327** |
+
+With an alignment, 32 buried mutations barely move the structure. Without one,
+they destroy it. **This suggests the alignment is what makes the output
+invariant** — the mutation signal is in the pair representation either way (the
+route result), but with an MSA the decoder has a prior strong enough to override
+it.
+
+**Two caveats that stop this being a finished result:**
+1. At 32 mutations single-sequence, pLDDT is **0.382** — the model has largely
+   failed there, so "the structure changed" cannot be cleanly separated from
+   "the prediction broke down".
+2. The dose curve is non-monotonic at the start (0.727 → 0.945 from 1 to 2
+   mutations), so single-sequence sampling variability is substantial and we
+   have no replicates to quantify it.
+
+Worth pursuing properly, with replicates and a confidence floor, because if it
+survives it reconnects the mechanism to the MSA in a way the route decomposition
+alone did not — not "the mutation enters via the MSA" (it does not) but "the MSA
+is what pins the decoder".
+
+---
+
+## 2026-08-02 — end-of-day claim audit
+
+Checked every headline claim against today's work, including my own two
+retractions.
+
+| claim | status | note |
+|---|---|---|
+| 1. Pairformer represents mutational effect, rho = 0.548 held-out, 12 assays | **safe** | untouched today |
+| 2. Model's own outputs represent it far less; gap +0.335, 57/60 splits | **safe** | must now state sampling settings (200 steps) — the gap is protocol-dependent |
+| 3. Loss is downstream of the conditioning, in the sampler; not dispersion | **safe** | Boltz-2 only, as labelled |
+| 3a. Sampler insensitive during global fold determination | **safe** | Boltz-2 only, as labelled |
+| 4. Not one model's quirk — OF3 and Protenix replicate | **safe** | phenomenon + gap (+0.149/+0.237/+0.233) both hold with MSAs |
+
+### One genuine new caveat
+
+Boltz-2 single-sequence is **not** a broken regime — it folds GFP correctly
+(TM 0.973 to its own MSA structure). And there the internal-over-output gap is
+**+0.082, 95 % CI [−0.014, +0.170]**, i.e. does not clear zero.
+
+That is not a refutation — n = 20 splits, wide CI, positive point estimate — but
+it means we cannot claim the effect is regime-independent. It is demonstrated
+**where these models are actually used, with alignments**. For OF3/Protenix the
+single-sequence arm carries no information either way, because their
+single-sequence baseline is wrong (TM 0.29 to their own MSA structures).
+
+### Retractions and where they landed
+
+- **"a degraded structure correlates better with dG" as a general mechanism** —
+  had reached `report/results.html`. Rejected across 28 cells
+  (rho = +0.268, p = 0.17). **Now scoped in the report** to the within-Boltz-2
+  single-factor demonstration, with the withdrawal stated in place.
+- **"Boltz-2's pLDDT is miscalibrated"** — never reached the report; corrected in
+  this log. Checked by grep.
+
+### Still open, and correctly labelled as such
+
+- AF2 (the non-diffusion comparator): blocked — needs MSA support in the wrapper,
+  and the vendored DeepMind featurisation requires TensorFlow, absent from the
+  container. No shortcut; the small-domain workaround is closed off.
+- All intervention experiments remain Boltz-2 only.
+- "The MSA is what pins the decoder": promising but preliminary — confounded by
+  prediction failure at high mutation load (pLDDT 0.382), non-monotonic, no
+  replicates.
+
+---
+
+## 2026-08-02 (late) — steps 1 and 2
+
+### Step 2: per-layer capture for OF3 and Protenix — DONE and verified
+
+`pi_capture.py`. Both models build their Pairformer as stacked params + scan, so
+capture is the same trick; the work is reproducing each trunk faithfully up to
+the final recycling cycle.
+
+| | drift vs trunk | one-mutation signal | ratio |
+|---|---|---|---|
+| OpenFold3 (48 layers) | 4.74e-04 | 3.40e-01 | **716x** |
+| Protenix (16 layers) | 5.34e-04 | 4.01e-01 | **750x** |
+
+**Bit-identity is not achievable here and that is not a bug.** Both models wrap
+their scan body in `jax.checkpoint` inside a `fori_loop`; reproducing that fusion
+exactly *while extracting intermediates* is not possible. Diagnostic: the model
+is bit-deterministic (rel err 0.0 against itself), yet a loop built from the
+model's **own** `_trunk_iteration` still shows ~6e-04 — rolled-vs-unrolled XLA
+numerics in float32, not a different computation. Boltz-2's capture is exactly
+0.0 only because `pi_core.iteration` *is* the model's code path.
+
+So the criterion became **signal-to-drift**, which is the question that actually
+matters, and it earned its keep immediately: my first Protenix capture had drift
+**0.217** — on the same scale as the signal (ratio 2x). Three real errors, each
+individually fatal and none visible by inspection:
+* `z = msa_module(...)` is an **assignment**, not `z = z + msa_module(...)`;
+* the Pairformer key is `fold_in(key, 1)`, not the cycle key;
+* each cycle consumes one element of `split(key, recycling_steps)`, so
+  `recycle()` cannot supply the first n-1 cycles — it would split the key into
+  n-1 pieces rather than take the first n-1 of n.
+
+A tolerance loose enough to accept OF3's honest 6e-04 would have passed all
+three. Ratio-to-signal would not.
+
+### Step 1: MSA ablation — BLOCKED, and structurally so
+
+First, the alignments genuinely differ. Re-searching each variant gives Jaccard
+overlap with the wild type's homolog set of **0.05–0.89** (RS15 `S1W`: 0.052 —
+one mutation returns an almost entirely different alignment), thousands of
+unique homologs per variant, and depths varying by ±10 %. **The old project
+assumption that mutant MSAs are near-subsets of the wild type's is wrong.** That
+makes the ablation more important, not less.
+
+But it cannot be run with the current method:
+
+    ValueError: MSA shapes differ ((1, 2043, 63, 33) vs (1, 2048, 63, 33));
+    patching rows requires the two runs to share an alignment.
+
+Route decomposition works by **swapping MSA-derived tensors between the wild-type
+and mutant runs**. Two runs with genuinely different alignments have different
+tensor shapes, so there is nothing to swap. Capping the a3m files to a common
+row count does not fix it — Boltz-2 dedups internally and the post-dedup depths
+still differ (2043 vs 2048, 1841 vs 1806).
+
+**So the grafted alignment is a precondition of the route method, not a
+convenience.** The circularity in the route claim cannot be discharged by
+re-searching alignments while keeping this method. That is a sharper statement
+of the limitation than the report currently makes, and it should replace the
+"must run before submission" note, which promised something impossible.
+
+Ways forward, none free:
+1. truncate each pair to the common minimum depth before patching — each variant
+   keeps its **own** homologs, only the count is matched. Small change to
+   `pi_paths.build_hybrid`, and defensible, but it is no longer the untouched
+   alignment.
+2. answer the circularity with a different experiment entirely — e.g. compare the
+   magnitude of internal change under real vs grafted alignments with no
+   patching, which needs no shape match.
+
+(2) is cleaner and probably what the paper should do.
+
+---
+
+## 2026-08-02 — CORRECTION: mutant MSAs ARE near-identical to the wild type's
+
+Earlier today I wrote that re-searched mutant alignments differ substantially
+from the wild type's (Jaccard 0.05–0.89) and that "the old project assumption
+that mutant MSAs are near-subsets of the wild type's is wrong."
+
+**That was an artefact of how I measured overlap.** Measured properly:
+
+| RCRO variant | overlap by UniRef **ID** | overlap by **sequence string** |
+|---|---|---|
+| M10I | **0.983** | 0.646 |
+| L40P | **0.954** | 0.613 |
+| R2Q | **0.981** | 0.393 |
+
+By homolog identity the alignments are **95–98 % the same**. The old assumption
+holds, and it was always the physically sensible expectation: sequences differing
+by one residue do not have different evolutionary neighbourhoods.
+
+**The bug:** a3m marks insertions *relative to the query* in lowercase. A
+different query produces a different insertion pattern, so stripping lowercase
+and gaps yields a different string for the **same database sequence**. I was
+comparing an alignment-dependent representation and reading it as homolog
+identity. Query rows were verified correct (39/39), so it was not a mapping error
+— it was the wrong invariant.
+
+This is the fourth time this session that a statistic was read as answering a
+question it does not answer (sequence-length-as-MSA-depth twice, distogram
+entropy as correctness, and now alignment-encoded strings as homolog identity).
+
+### Consequence: the ablation runs after all
+
+Because the homolog sets are ~98 % identical, capping every alignment to a fixed
+row count (512) gives near-identical content **and identical shapes**, which is
+what route patching requires. The shape mismatch that blocked this earlier was
+caused by variable depth, not by genuinely different alignments — so the earlier
+conclusion that "the grafted alignment is a precondition of the method" is too
+strong. It is a precondition only that the alignments have the same shape, and
+with a fixed cap the real re-searched alignments satisfy it.
+
+Rerunning the route decomposition on real, per-variant alignments capped at 512.
+
+---
+
+## 2026-08-02 — route ablation on REAL alignments: msa_prior was zero by construction
+
+3 assays x 12 variants = 36 observations, each variant carrying its own
+re-searched alignment capped at 512 rows.
+
+| route | REAL necess | REAL suffic | GRAFTED necess | GRAFTED suffic |
+|---|---|---|---|---|
+| `z_direct` | +0.511 | **+0.963** | +0.840 | +0.995 |
+| `s_direct` | 0.000 | 0.000 | 0.000 | 0.000 |
+| `msa_bcast` | −0.040 | +0.182 | +0.002 | +0.160 |
+| `msa_query` | +0.008 | +0.033 | +0.002 | +0.008 |
+| **`msa_prior`** | **+0.073** | **+0.440** | **0.000** | **0.000** |
+
+### What survives
+
+**`z_direct` is still the dominant route** — sufficiency 0.963 against 0.995
+grafted. Injecting the pair representation alone still reproduces essentially the
+whole effect. The core of the claim holds.
+
+### What does not
+
+**`msa_prior` goes from exactly 0.000 to +0.440 sufficiency.** Under grafted
+alignments its zero was **true by construction**: every variant carried
+byte-identical homolog rows, so injecting them could not do anything. With real
+alignments the homolog rows differ slightly and that alone reproduces **44 % of
+the mutation's effect**.
+
+So "the MSA routes carry essentially nothing" is **no longer supportable**. The
+correct statement is that the effect is **redundantly encoded**: `z_direct` and
+`msa_prior` are both largely sufficient, which is also why `z_direct` necessity
+falls 0.840 → 0.511 — with a second channel available, restoring one no longer
+removes most of the effect.
+
+Striking that homolog sets only ~2–5 % different by UniRef ID are enough to carry
+0.44 sufficiency.
+
+**The circularity was real.** My earlier reasoning was right even though the
+measurement I used to motivate it (alignment-string overlap) was wrong.
+
+### Caveat that must be fixed before this goes in the paper
+
+**Depth is confounded.** The grafted reference ran at cap 2048; this ran at
+cap 512. Depth is known to change mutation sensitivity (single-sequence is ~4.4x
+more sensitive than full depth), so part of the difference may be depth, not
+alignment content. **The grafted arm must be re-run at cap 512 on these same 3
+assays** before the two columns can be compared directly. Until then the
+qualitative finding (`msa_prior` is non-zero with real alignments, and cannot be
+otherwise) stands, but the magnitudes do not.
+
+Also: 3 assays / 36 obs here vs 12 assays / 24 obs for the grafted reference —
+different protein sets.
+
+### Depth-matched control (both capped 512, same 3 assays)
+
+| route | REAL nec | REAL suf | GRAFTED nec | GRAFTED suf |
+|---|---|---|---|---|
+| `z_direct` | +0.511 | +0.963 | +0.924 | +1.024 |
+| `msa_bcast` | −0.040 | +0.182 | −0.030 | +0.077 |
+| `msa_query` | +0.008 | +0.033 | +0.002 | +0.013 |
+| **`msa_prior`** | **+0.073** | **+0.440** | **+0.000** | **+0.000** |
+
+**`msa_prior` = 0.000 exactly, at matched depth.** So the zero was never a depth
+artefact — it is construction, as suspected. The finding stands.
+
+### And an unexpected one: grafting INFLATES the internal effect
+
+| | median ‖D(M) − D(WT)‖ |
+|---|---|
+| real per-variant alignments | 0.0245 A (n=36) |
+| grafted wild-type alignment | 0.0634 A (n=6) |
+| **ratio** | **0.39x** |
+
+Grafting makes the mutation's internal effect **~2.6x larger**. The mechanism is
+straightforward in hindsight: a grafted alignment puts a mutated query row
+against homolog rows that still encode the wild type, so the model sees a
+query/alignment *conflict*. A re-searched alignment shifts its homologs slightly
+toward the mutant, partially absorbing the substitution, and the net perturbation
+is smaller.
+
+Caveat: n=6 grafted (2 variants x 3 assays, destab/neutral) vs n=36 real (12
+linspace-picked variants), so the variant sets are not identical. The direction
+is clear; the exact ratio is not.
+
+### What this means for the rest of the project
+
+**Every experiment used grafted alignments** — `exp_gym2` (the headline probe),
+`exp_gym_multi`, `exp_trajectory`, `exp_ensemble`, `exp_amplify`,
+`exp_consistency`, and the GFP cohort via `build_dataset.write_a3m`. Grafting is
+therefore a scope condition on the whole project, not a footnote on the route
+experiment.
+
+Consequences, by claim:
+
+* **Route decomposition** — genuinely revised. `z_direct` dominant survives
+  (suf 0.963); "MSA routes carry nothing" holds ONLY for grafted alignments.
+* **Internal-vs-output probe (rho 0.548 vs 0.214)** — still supported *as
+  measured*. It is a paired comparison: both predictors are computed from the
+  same runs under the same alignment condition, so grafting cannot bias one side
+  against the other. Untested under real alignments.
+* **The phenomenon (belief moves, structure does not)** — safe, and if anything
+  **conservative**: grafting inflates the internal perturbation 2.6x, so with
+  real alignments the internal signal is smaller while the structure is no more
+  mobile. The gap between them does not close.
+* **Sampler results (trajectory, beta, amplification, consistency)** — valid as
+  measured; magnitudes are on the inflated (grafted) scale.
+
+Nothing here overturns the internal-vs-output claim. What it does is put a
+scope line under the whole report: **magnitudes are measured against a grafted
+alignment and are ~2.6x larger than a user would see.**
+
+---
+
+## 2026-08-02 (night) — deep cross-model probe: the last caveat is closed
+
+`exp_gym_deep.py` + `analyze_gym_deep.py` + `fig_gym_deep.py`. OF3 and Protenix
+now use the SAME internal feature construction as the Boltz-2 headline: four
+quantities (`kl_glob`, `kl_site`, `dz_site`, `ds_site`) at **every** Pairformer
+layer, obtained by capturing the scan intermediates and applying each model's own
+distogram head as a logit lens.
+
+Same 4 assays, position-grouped splits, identical rows per predictor:
+
+| predictor | Boltz-2 (64L, 256f) | OpenFold3 (48L, 192f) | Protenix (16L, 64f) |
+|---|---|---|---|
+| **internal (per-layer)** | **+0.542** | **+0.514** | **+0.487** |
+| TM to wild type | +0.229 | +0.254 | +0.289 |
+| pLDDT | +0.250 | +0.389 | +0.414 |
+| pLDDT at site | +0.083 | +0.168 | +0.088 |
+| position-only | −0.014 | +0.186 | +0.186 |
+| **gap, 95 % CI** | **+0.313 [+0.227, +0.402]** | **+0.260 [+0.156, +0.372]** | **+0.198 [+0.084, +0.311]** |
+| internal beats TM | 20/20 | 17/20 | 15/20 |
+
+**All three clear zero.** And Boltz-2 scores **0.542** on these four assays
+against its 12-assay headline of **0.548** — a useful check that the whole
+protocol reproduces itself on a different assay subset and variant selection.
+
+The 5-feature shortcut is gone, and with it the "not comparable to rho = 0.548"
+caveat that was repeated in every table and figure. Remaining non-identity, now
+stated instead: Boltz-2 uses 250 variants with pair-sampled per-layer features;
+OF3 and Protenix use 100 variants and all pairs.
+
+### A bug caught before launching, worth recording
+
+`dz_site` reshaped z to `[L, N*N, C]` and then indexed by residue — which selects
+row 0 / column `pos`, not the mutated residue's row. Plausible magnitudes, wrong
+quantity. `ds_site` was unaffected because `s` is already `[L, N, C]`. Found by
+sanity-checking the smoke run's features rather than by reading the code.
+
+### Note on the shallow-vs-deep comparison
+
+Protenix's number went slightly DOWN (0.519 shallow -> 0.487 deep). The two
+feature sets are not nested: the shallow set was
+{kl_glob, kl_site, ent_glob, ent_site, ed_site} at the final layer, the deep one
+is {kl_glob, kl_site, dz_site, ds_site} across layers. Entropy and E[d] are
+dropped in the deep set. So "deep is better" is not guaranteed and did not
+happen here — worth not overstating.

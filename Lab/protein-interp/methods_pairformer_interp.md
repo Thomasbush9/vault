@@ -70,14 +70,42 @@ absolute growth vs growth relative to a scrambled-sequence control; raw vs
 partial correlation; and a hand-rolled TM-score vs `tmtools`. The controls are
 now built into the scripts rather than applied afterwards.
 
-**2.3 Structure comparison is `tmtools` only.** A hand-rolled TM-score scored
-two Boltz-2 predictions of the *same* sequence at 0.697 where tmtools gives
-0.978, which produced two false conclusions (a spurious "sampler noise floor"
-and spurious mutant-vs-WT divergence). `harness/geom.py` now wraps
-`tmtools.tm_align` and carries the failure history in its docstring.
-Validation: self-comparison 1.000; shuffled-residue floor 0.155; JAX wild type
-vs the independent PyTorch Boltz-2 prediction of the same sequence 0.978
-(RMSD 1.10 Å).
+A fifth was wrong for a different reason — not a missing control but an
+unverified primitive (see 2.3). The distinction matters: a missing control
+makes a real number uninterpretable, while a broken primitive makes the number
+itself fiction, and no amount of downstream care recovers it.
+
+**2.3 All superposition goes through one self-testing module.** This one has
+now cost two separate rounds of false conclusions, so it is worth stating
+precisely.
+
+*First:* a hand-rolled TM-score scored two Boltz-2 predictions of the *same*
+sequence at 0.697 where tmtools gives 0.978, producing a spurious "sampler
+noise floor" and spurious mutant-vs-WT divergence. Fixed by wrapping
+`tmtools.tm_align`.
+
+*Second, after that was written up:* `exp_trajectory.py` defined its **own**
+`kabsch_rmsd` instead of importing one, with the rotation transposed
+(`R = U diag Vᵀ` where Kabsch gives `R = V diag Uᵀ`), so it applied the inverse
+rotation. It scored two structures **identical up to a rigid motion at
+12.68 Å instead of 0**. Every divergence and noise-floor value in the first
+corrected trajectory run was invalid; the run was redone.
+
+Both times the broken function returned numbers in the right units, with the
+right sign, ordered the way intuition expected. **Nothing about the output said
+"wrong."** Documenting the first failure did not prevent the second — only an
+executable check does.
+
+`harness/geom.py` is now the single copy of every superposition primitive,
+carries the failure history in its docstring, and calls `self_test()` **on
+import**, asserting three cases with known answers: a rigid motion must give
+exactly 0, a reflection must *not* (no improper rotations), a pure translation
+must give 0. Anything that superimposes imports from it.
+Validation against the reference implementation: self-comparison TM 1.000;
+shuffled-residue floor 0.155; JAX wild type vs the independent PyTorch Boltz-2
+prediction of the same sequence TM 0.978 (RMSD 1.10 Å); and
+`geom.kabsch_rmsd` agrees with `tmtools` RMSD to 3 decimals whenever TM-align
+aligns all residues (1.734 vs 1.734 Å on the GFP surface cohort).
 
 ---
 
@@ -354,9 +382,24 @@ model = eqx.tree_at(lambda m: m.diffusion_conditioning, model,
                     is_leaf=lambda x: x is model.diffusion_conditioning)
 ```
 
-**Required diagnostic before believing any beta result:** confirm that the
-conditioning tensors actually differ across beta. If ‖Δq‖/‖q‖ is unchanged, the
-knob is not connected and the run is uninformative regardless of its outcome.
+**Correction — the diagnostic first prescribed here was itself wrong.** It said
+to check that ‖Δq‖/‖q_wt‖ changes across beta. That quantity is a *relative*
+difference, so a global scale cancels in it **exactly**: if both q_mut and q_wt
+are multiplied by beta, the ratio is unchanged by construction. Measured on the
+bias path it read 0.284703 / 0.284703 / 0.284704 / 0.284703 for beta =
+1 / 1.5 / 2 / 3 — flat, while the intervention was in fact working. (It also
+reads the *unscaled* conditioning, since `cond` is computed from the unwrapped
+model.) A scale-invariant statistic cannot detect a scale.
+
+**Use instead any quantity that is not scale-invariant:**
+
+- wild-type **pLDDT**: 0.858 → 0.798 → 0.736 → 0.569 across beta = 1 → 3;
+- wild-type **ensemble spread** (mean pairwise TM over K diffusion draws):
+  0.9900 → 0.8031 → 0.6139 → 0.3032.
+
+Both move monotonically and hugely, which is what "the knob is connected" looks
+like. The general rule: a diagnostic for an intervention must be sensitive to
+the thing the intervention changes — check that before trusting it, not after.
 
 ### 4.11 RSA — pairformer vs structure module *(running)*
 `exp_gym2.py`, `analyze_rsa.py`

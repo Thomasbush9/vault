@@ -307,6 +307,29 @@ Related: [[Language Emergence with Stag Hunt Game]], [[Stag Hunt Language Emerge
 
 ---
 
+## 2026-08-01 — Phase 2d: make a wrong rendezvous cost something (job 36646337)
+
+Every run so far set `failed_stag_reward = 0.0`: two agents standing together on the *wrong* stag lost nothing but time. The only pressure toward the right stag was the +4 they forgo. This arm adds direct negative feedback — **-1 per step of joint presence on a wrong stag** — on the hypothesis that punishing mis-targeting sharpens credit on the channel and speeds convergence.
+
+Scale check before launching: solo05 averaged `mean_wrong_presence_steps` of **0.75–0.95 per episode** across training, so -1/step is roughly **-0.8 expected per episode against a +4 capture** — a real but not overwhelming pressure, and it decays automatically as targeting improves. (In presence mode the wrong-stag event is non-terminal and pays per step, so the penalty is self-limiting only through behaviour, not through the env.)
+
+Two arms × 4 seeds × 10,000 updates, batch 128, 2 runs/GPU:
+
+| arm | penalty | solo reward | question |
+| --- | --- | --- | --- |
+| `phase2d_pen_seed{0..3}` | -1.0 | 0.0 | Is the penalty enough on its own? Fully bias-free — no aux losses, no solo scaffold. The comparable bias-free control was a flat null (16–31% targeting at all informedness levels). |
+| `phase2d_pensolo_seed{0..3}` | -1.0 | 0.5 | The solo05 recipe (first bias-free causal communication) plus the penalty. Does it converge faster / go further than solo05 alone? |
+
+Reference control is `2026-07-29_common-knowledge/phase2b_solo05_seed*` **read at update 10,000** (solo 0.5, penalty 0.0) — no new GPU time needed for it. Everything else is the unchanged phase-1 game: no hares, presence capture, blind to partner, randomised clue roles, decoupled actors, 8 stags (4 colours × 2 regions), vocab 4 + silence, message entropy 0.01.
+
+Note the `pen` arm is a genuinely interesting negative-control-turned-hypothesis: a penalty is a *collective* signal (both agents pay), so unlike the solo reward it does **not** supply an individual gradient for using information you already hold. If `pen` alone works, the "no individual gradient" diagnosis from the bias-free 2×2 needs revising; if only `pensolo` works, the diagnosis stands and the penalty is a speed-up, not a driver.
+
+Code: `--failed-stag-reward` added to `train_mappo.py` (commit `f15b791`) — the payoff was previously reachable only through the risk curriculum, which anneals toward the 0.0 default. Verdicts will come from `probe_shuffle.py` / `probe_swap_controls.py`, not from mute/random interventions.
+
+Housekeeping: phase 2c runs filed into `stag-hunt-files/2026-07-30_solo-anneal/`.
+
+---
+
 ## 2026-07-26 — Design review, phase plan, presence-based phase-1 game
 
 ### New finding from the old data: cooperation without any information transfer
